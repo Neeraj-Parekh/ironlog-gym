@@ -1,0 +1,35 @@
+{
+  "metadata": {
+    "log_version": "2.0",
+    "timestamp_epoch": null,
+    "target_day_tags": []
+  },
+  "session_payload": {
+    "day_identifier": "monday_push",
+    "day_label": "Push Day A",
+    "exercises_logged": [
+      {
+        "sequence": 1,
+        "name": "Seated Chest Press Machine",
+        "exercise_type": "machine",
+        "equipment_id": "mach_chest_press_01",
+        "visual_tag": {
+          "label": "MACHINE",
+          "border_color": "#EF4444",
+          "bg_color": "#FEF2F2",
+          "icon_identifier": "cpu"
+        },
+        "metrics": {
+          "tracking_mode": "progressive_overload",
+          "sets": [
+            { "set_index": 1, "weight_kg": 60.0, "reps_completed": 10 },
+            { "set_index": 2, "weight_kg": 65.0, "reps_completed": 8 }
+          ]
+        },
+        "fallback_ids": [],
+        "is_fixed": false,
+        "block_type": "exercise"
+      }
+    ]
+  }
+}

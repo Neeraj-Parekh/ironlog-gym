@@ -1,0 +1,119 @@
+{
+  "gym_inventory": {
+    "barbells": [
+      { "id": "bar_std_20", "name": "Olympic Barbell", "weight_kg": 20.0 },
+      { "id": "bar_ez_10", "name": "EZ Curl Bar", "weight_kg": 10.0 },
+      { "id": "bar_trap_25", "name": "Trap/Hex Bar", "weight_kg": 25.0 }
+    ],
+    "dumbbells": {
+      "unit": "kg",
+      "available_pairs": [2.5, 5.0, 7.5, 10.0, 12.5, 15.0, 17.5, 20.0, 22.5, 25.0, 27.5, 30.0, 32.5, 35.0, 37.5, 40.0]
+    },
+    "weight_plates": {
+      "unit": "kg",
+      "pairs_available": {
+        "1.25": 4,
+        "2.5": 4,
+        "5.0": 6,
+        "10.0": 4,
+        "15.0": 2,
+        "20.0": 4,
+        "25.0": 2
+      }
+    },
+    "machines": [
+      {
+        "id": "mach_lat_pulldown_01",
+        "name": "Lat Pulldown Station",
+        "weight_type": "pin_stack",
+        "stack_increment_kg": 5.0,
+        "max_weight_kg": 100.0,
+        "current_status": "AVAILABLE"
+      },
+      {
+        "id": "mach_pec_deck_01",
+        "name": "Pec Deck Fly",
+        "weight_type": "plate_loaded",
+        "base_weight_kg": 0.0,
+        "current_status": "AVAILABLE"
+      },
+      {
+        "id": "mach_chest_press_01",
+        "name": "Seated Chest Press Machine",
+        "weight_type": "pin_stack",
+        "stack_increment_kg": 5.0,
+        "max_weight_kg": 100.0,
+        "current_status": "AVAILABLE"
+      },
+      {
+        "id": "mach_cable_crossover_01",
+        "name": "Cable Crossover Station A",
+        "weight_type": "pin_stack",
+        "stack_increment_kg": 2.5,
+        "max_weight_kg": 90.0,
+        "current_status": "AVAILABLE"
+      },
+      {
+        "id": "mach_leg_press_01",
+        "name": "Leg Press 45°",
+        "weight_type": "plate_loaded",
+        "base_weight_kg": 0.0,
+        "current_status": "AVAILABLE"
+      },
+      {
+        "id": "mach_hack_squat_01",
+        "name": "Hack Squat Machine",
+        "weight_type": "plate_loaded",
+        "base_weight_kg": 0.0,
+        "current_status": "AVAILABLE"
+      },
+      {
+        "id": "mach_leg_curl_01",
+        "name": "Seated Leg Curl",
+        "weight_type": "pin_stack",
+        "stack_increment_kg": 2.5,
+        "max_weight_kg": 80.0,
+        "current_status": "AVAILABLE"
+      },
+      {
+        "id": "mach_leg_extension_01",
+        "name": "Leg Extension",
+        "weight_type": "pin_stack",
+        "stack_increment_kg": 2.5,
+        "max_weight_kg": 80.0,
+        "current_status": "AVAILABLE"
+      },
+      {
+        "id": "mach_shoulder_press_01",
+        "name": "Shoulder Press Machine",
+        "weight_type": "pin_stack",
+        "stack_increment_kg": 2.5,
+        "max_weight_kg": 80.0,
+        "current_status": "AVAILABLE"
+      },
+      {
+        "id": "mach_tricep_pushdown_01",
+        "name": "Cable Tricep Pushdown",
+        "weight_type": "pin_stack",
+        "stack_increment_kg": 2.5,
+        "max_weight_kg": 60.0,
+        "current_status": "AVAILABLE"
+      },
+      {
+        "id": "mach_bicep_curl_01",
+        "name": "Preacher Curl Machine",
+        "weight_type": "pin_stack",
+        "stack_increment_kg": 2.5,
+        "max_weight_kg": 60.0,
+        "current_status": "AVAILABLE"
+      },
+      {
+        "id": "treadmill_01",
+        "name": "Treadmill Station 1",
+        "weight_type": "pin_stack",
+        "base_weight_kg": 0.0,
+        "current_status": "AVAILABLE"
+      }
+    ]
+  }
+}

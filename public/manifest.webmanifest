@@ -1,0 +1,20 @@
+{
+  "name": "IronLog — Gym Session Tracker",
+  "short_name": "IronLog",
+  "description": "Phone-optimized gym session tracker with smart machine fallback, rest timers, and AI-powered routine import.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a0a0a",
+  "theme_color": "#0a0a0a",
+  "categories": ["health", "fitness", "productivity"],
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
