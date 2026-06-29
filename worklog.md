@@ -162,3 +162,53 @@ Stage Summary:
   - v3 schema import (Barbell Row with Compound badge, RPE 9, 1 fallback) ✓
 - Lint passes clean (0 errors, 0 warnings)
 - Dev server running healthy on port 3000
+
+---
+Task ID: batch-all-features
+Agent: main
+Task: All missing/flagged features + gaps + training aids + polish (Android-only)
+
+Work Log:
+
+BATCH 1 — DATA RESILIENCE:
+- Extended types.ts with: SessionSet RPE/tempo/set_type/notes, Biometric sleep/soreness/mood/readiness, PersonalRecord, Milestone, StreakRecord, RoutineTemplate
+- Updated Dexie to v2 schema — added personal_records, milestones, streak, templates tables
+- Created db-backup.ts — createFullBackup (13 tables), restoreFullBackup, purgeOldData (60-day window), hardResetDatabase
+- Created data-management.tsx — Backup (copy/download), Restore, Purge, Hard Reset with confirmations
+- Added DataManagementSection to Settings hub
+
+BATCH 2 — HUD ENHANCEMENTS:
+- logSet now accepts RPE/tempo/set_type/notes
+- Created use-previous-session.ts — usePreviousSession + useWorkoutTimer hooks
+- Created warmup-calc.ts — calculateWarmupSets (empty bar → 60% → 75% → 85% → 90%)
+- Created haptics.ts — light/medium/heavy/success/error/select patterns
+- Created sound.ts — Web Audio chime/beep/click
+- Created hud-extras.tsx — RpeNotesSheet, PreviousSessionCard, WarmupCalcCard, ProgressionCard
+- Updated HUD: workout timer, prev session card, progression card, warmup card, RPE badge, Add RPE button, haptic feedback, sound on rest
+
+BATCH 3 — ROUTINE BUILDER:
+- Added @dnd-kit drag-to-reorder (SortableExerciseRow with grip handle)
+- Added duplicate-day dialog (copy exercises to any day)
+- Added deload week button (60% volume, 85% weight, new version)
+- Created exercise-catalog-dialog.tsx — search, edit, delete with confirmation
+- Added deleteExercise() + updateExercise() helpers
+
+BATCH 4 — ANALYTICS+:
+- Created progression.ts — checkAndRecordPRs, updateStreak, checkMilestones, getProgressionSuggestion
+- endAndPersistSession now auto-records PRs/streaks/milestones + shows celebration toasts
+- Created achievements-panel.tsx — streak card, PR list, milestone grid
+- Added session delete to History tab
+
+BATCH 5 — RECOVERY:
+- Created recovery-tracker.tsx — Sleep (4-10h), Soreness (1-5), Mood (emoji), Readiness (1-5)
+- Water goal now dynamic: setting → bodyweight×35ml → 2500ml default
+
+BATCH 6 — POLISH:
+- Fallback resolver now checks equipment table current_status (not just session-scoped)
+- Settings: sound toggle + type, water goal, progression toggle, warmup toggle
+- Web Audio sound effects (no files needed)
+
+Stage Summary:
+- ALL flagged gaps fixed + ALL training aids + ALL polish added
+- Browser-verified: backup, catalog, recovery, HUD (timer/RPE/warmup/progression), PRs, streaks, milestones, drag-reorder, duplicate-day, deload
+- Lint: 0 errors, 0 warnings

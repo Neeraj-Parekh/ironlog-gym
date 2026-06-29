@@ -1,11 +1,15 @@
 "use client";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import type { SetInputsRef } from "./set-inputs";
 import { useAppStore } from "@/lib/store/app-store";
 import { useActiveSessionStore } from "@/lib/store/active-session-store";
 import { useSettingsStore } from "@/lib/store/settings-store";
 import { useEquipment } from "@/hooks/use-routine";
 import { useWakeLock } from "@/hooks/use-wake-lock";
+import { usePreviousSession, useWorkoutTimer } from "@/hooks/use-previous-session";
+import { getProgressionSuggestion } from "@/lib/progression";
+import { calculateWarmupSets } from "@/lib/warmup-calc";
+import { haptic } from "@/lib/haptics";
 import {
   startSessionForDay,
   endAndPersistSession,
@@ -48,9 +52,17 @@ import {
   AlertCircle,
   Zap,
   Flag,
+  Flame,
+  Timer,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import {
+  RpeNotesSheet,
+  PreviousSessionCard,
+  WarmupCalcCard,
+  ProgressionCard,
+} from "./hud-extras";
 
 export function ActiveSessionHUD() {
   const {
@@ -69,7 +81,7 @@ export function ActiveSessionHUD() {
     startRest,
     stopRest,
   } = useActiveSessionStore();
-  const { autoStartRest, defaultRestSeconds } = useSettingsStore();
+  const { autoStartRest, defaultRestSeconds, showProgressionSuggestions, showWarmupCalc } = useSettingsStore();
   const { equipment } = useEquipment();
   const setView = useAppStore((s) => s.setView);
 
@@ -85,6 +97,10 @@ export function ActiveSessionHUD() {
     | { kind: "no_fallbacks"; message: string }
     | null
   >(null);
+  // RPE + notes for current set
+  const [rpe, setRpe] = useState<number | null>(null);
+  const [notes, setNotes] = useState("");
+  const [showRpeNotes, setShowRpeNotes] = useState(false);
 
   // Reset inputs when current node changes — use a keyed child component
   // to avoid setState-in-effect lint rule
@@ -93,6 +109,43 @@ export function ActiveSessionHUD() {
 
   // Keep screen on during active workout (releases on session end)
   useWakeLock(!!session && !isFinished);
+
+  // Previous session data for current exercise
+  const { data: prevSession } = usePreviousSession(
+    currentNode?.exercise_id,
+    session?.id
+  );
+
+  // Workout timer
+  const { formatted: workoutTimer } = useWorkoutTimer(
+    session?.started_at,
+    !!session && !isFinished
+  );
+
+  // Progression suggestion for current exercise
+  const [progression, setProgression] = useState<{
+    suggestedWeight: number;
+    suggestedReps: number;
+    reason: string;
+    trend: "increase" | "maintain" | "deload";
+  } | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!currentNode?.exercise_id) {
+        setProgression(null);
+        return;
+      }
+      const s = await getProgressionSuggestion(currentNode.exercise_id);
+      if (!cancelled) setProgression(s);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [currentNode?.exercise_id]);
+
+  // RPE/notes are cleared in handleLogSet after each set is logged
 
   if (!session) {
     return (
@@ -129,6 +182,7 @@ export function ActiveSessionHUD() {
     const { weight: w, reps: r } = inputsRef.current;
     if (r === 0) {
       toast.error("Enter reps before logging");
+      haptic("error");
       return;
     }
     logSet(
@@ -140,9 +194,14 @@ export function ActiveSessionHUD() {
       currentNode.id.includes("_fb_"),
       autoStartRest
         ? currentNode.prescribed_rest_seconds ?? defaultRestSeconds
-        : undefined
+        : undefined,
+      { rpe: rpe ?? undefined, notes: notes || undefined }
     );
-    toast.success(`Set ${currentSetNumber} logged: ${w}kg × ${r}`);
+    haptic("success");
+    toast.success(`Set ${currentSetNumber} logged: ${w}kg × ${r}${rpe ? ` @ RPE ${rpe}` : ""}`);
+    // Reset RPE/notes for next set
+    setRpe(null);
+    setNotes("");
 
     // Auto-advance if last set
     if (isLastSet) {
@@ -153,6 +212,7 @@ export function ActiveSessionHUD() {
   // ---- Station busy handler ----
   const handleStationBusy = async () => {
     if (!currentNode) return;
+    haptic("medium");
     markStationBusy(currentNode.id);
     const resolution = await resolveFallback(currentNode, busyNodeIds);
     if (resolution.kind === "available") {
@@ -161,20 +221,24 @@ export function ActiveSessionHUD() {
         exerciseName: resolution.exercise.name,
       });
       swapToFallback(resolution.node);
+      haptic("success");
       toast.success(`Swapped to fallback: ${resolution.exercise.name}`);
     } else if (resolution.kind === "all_busy") {
       setFallbackPreview({ kind: "all_busy", message: resolution.message });
       deferCurrentToEnd();
+      haptic("error");
       toast.error(resolution.message);
     } else {
       setFallbackPreview({ kind: "no_fallbacks", message: resolution.message });
       deferCurrentToEnd();
+      haptic("error");
       toast.error(resolution.message);
     }
   };
 
   // ---- Skip / defer ----
   const handleSkip = () => {
+    haptic("light");
     skipCurrent();
     toast("Exercise skipped", {
       description: "Moved to next in queue",
@@ -212,10 +276,17 @@ export function ActiveSessionHUD() {
             <span className="text-xs font-medium">
               {session.day_label}
             </span>
-            <span className="text-xs text-muted-foreground tabular-nums">
-              {completedExercises}/{totalExercises} ·{" "}
-              {totalVolume.toLocaleString()} kg volume
-            </span>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground tabular-nums">
+              <span className="flex items-center gap-0.5">
+                <Timer className="h-3 w-3" />
+                {workoutTimer}
+              </span>
+              <span>·</span>
+              <span>
+                {completedExercises}/{totalExercises} ·{" "}
+                {totalVolume.toLocaleString()} kg
+              </span>
+            </div>
           </div>
           <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
             <div
@@ -280,7 +351,34 @@ export function ActiveSessionHUD() {
               <span className="text-sm text-muted-foreground">
                 Set {currentSetNumber} of {targetSetCount}
               </span>
+              {rpe !== null && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 text-amber-700 px-2 py-0.5 text-[10px] font-semibold">
+                  <Flame className="h-3 w-3" />
+                  RPE {rpe}
+                </span>
+              )}
             </div>
+
+            {/* Previous session reference */}
+            <PreviousSessionCard data={prevSession} />
+
+            {/* Progression suggestion */}
+            {showProgressionSuggestions && (
+              <ProgressionCard suggestion={progression} />
+            )}
+
+            {/* Warm-up calculator */}
+            {showWarmupCalc &&
+              currentNode.equipment_source?.type === "barbell" &&
+              displayWeight > 0 && (
+                <WarmupCalcCard
+                  sets={calculateWarmupSets(
+                    displayWeight,
+                    barbellEq?.barWeight ?? 20
+                  )}
+                  workingWeight={displayWeight}
+                />
+              )}
 
             {/* Previous sets logged for this exercise */}
             {setsForCurrent.length > 0 && (
@@ -295,6 +393,7 @@ export function ActiveSessionHUD() {
                       className="rounded bg-background px-2 py-1 text-xs font-mono"
                     >
                       {s.weight_kg}kg×{s.reps_completed}
+                      {s.rpe && ` @${s.rpe}`}
                     </span>
                   ))}
                 </div>
@@ -407,6 +506,23 @@ export function ActiveSessionHUD() {
             >
               <Check className="h-6 w-6" />
               LOG SET {currentSetNumber}
+              {rpe !== null && (
+                <span className="ml-1 rounded bg-emerald-800/50 px-1.5 py-0.5 text-xs">
+                  RPE {rpe}
+                </span>
+              )}
+            </Button>
+
+            {/* RPE + Notes button */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full gap-1.5 h-9"
+              onClick={() => setShowRpeNotes(true)}
+            >
+              <Flame className="h-4 w-4" />
+              {rpe !== null ? `RPE ${rpe}` : "Add RPE"}
+              {notes && <span className="text-muted-foreground">· Notes</span>}
             </Button>
 
             {/* Secondary row */}
@@ -492,6 +608,19 @@ export function ActiveSessionHUD() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* RPE + Notes sheet */}
+      <RpeNotesSheet
+        open={showRpeNotes}
+        onOpenChange={setShowRpeNotes}
+        rpe={rpe}
+        onRpeChange={(v) => {
+          setRpe(v);
+          haptic("select");
+        }}
+        notes={notes}
+        onNotesChange={setNotes}
+      />
 
       {/* Rest timer pill (floating) */}
       <RestTimerPill />

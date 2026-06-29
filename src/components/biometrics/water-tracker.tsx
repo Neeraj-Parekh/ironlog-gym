@@ -1,5 +1,6 @@
 "use client";
-import { useWaterIntake, useWater24h } from "@/hooks/use-biometrics";
+import { useWaterIntake, useWater24h, useBiometrics } from "@/hooks/use-biometrics";
+import { useSettingsStore } from "@/lib/store/settings-store";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,11 +15,20 @@ import {
 import { Droplets, Plus, Trash2, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const DAILY_GOAL_ML = 2500; // default goal, could be configurable
-
 export function WaterTracker() {
   const { todayIntake, totalMl, addWater, removeWater } = useWaterIntake();
   const { data: graphData } = useWater24h();
+  const { getLatest } = useBiometrics();
+  const { waterGoalMl } = useSettingsStore();
+
+  // Calculate dynamic goal: 35ml × bodyweight, or user-set override, or 2500 default
+  const bodyweight = getLatest("body_weight");
+  const DAILY_GOAL_ML =
+    waterGoalMl > 0
+      ? waterGoalMl
+      : bodyweight
+      ? Math.round(bodyweight.value * 35)
+      : 2500;
 
   const goalProgress = Math.min(100, (totalMl / DAILY_GOAL_ML) * 100);
   const remaining = Math.max(0, DAILY_GOAL_ML - totalMl);

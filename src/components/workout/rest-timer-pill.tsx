@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useActiveSessionStore } from "@/lib/store/active-session-store";
 import { useSettingsStore } from "@/lib/store/settings-store";
+import { playRestCompleteSound } from "@/lib/sound";
 import { Button } from "@/components/ui/button";
 import { Minus, Plus, X, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -61,6 +62,8 @@ export function RestTimerPill() {
           navigator.vibrate([200, 100, 200]);
         }
       }
+      // Sound
+      playRestCompleteSound();
     }
   }, [
     now,

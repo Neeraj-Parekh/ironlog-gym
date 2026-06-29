@@ -8,8 +8,20 @@ import {
   estimate1RM,
   type ExerciseTrendPoint,
 } from "@/lib/analytics";
+import { deleteSession } from "@/lib/session-helpers";
+import { AchievementsPanel } from "./achievements-panel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Select,
   SelectContent,
@@ -42,13 +54,28 @@ import {
   Trophy,
   Zap,
   Activity,
+  Trash2,
 } from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 export function AnalyticsView() {
-  const { sessions, loading } = useSessions();
+  const { sessions, loading, reload } = useSessions();
   const loggedExercises = useLoggedExercises();
   const [selectedExerciseId, setSelectedExerciseId] = useState<string>("");
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+
+  const handleDeleteSession = async () => {
+    if (!deleteTarget) return;
+    try {
+      await deleteSession(deleteTarget);
+      toast.success("Session deleted");
+      setDeleteTarget(null);
+      reload();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Delete failed");
+    }
+  };
 
   if (loading) {
     return (
@@ -320,7 +347,10 @@ export function AnalyticsView() {
         </TabsContent>
 
         {/* Session history */}
-        <TabsContent value="history" className="space-y-2 mt-3">
+        <TabsContent value="history" className="space-y-3 mt-3">
+          {/* Achievements at top of history */}
+          <AchievementsPanel />
+
           {sessions.map(({ session, sets }) => {
             const summary = summarizeSession(session, sets);
             return (
@@ -342,11 +372,21 @@ export function AnalyticsView() {
                         })}
                       </p>
                     </div>
-                    {summary.durationMinutes !== null && (
-                      <span className="text-xs text-muted-foreground shrink-0">
-                        {summary.durationMinutes} min
-                      </span>
-                    )}
+                    <div className="flex items-center gap-2 shrink-0">
+                      {summary.durationMinutes !== null && (
+                        <span className="text-xs text-muted-foreground">
+                          {summary.durationMinutes} min
+                        </span>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                        onClick={() => setDeleteTarget(session.id)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
                   </div>
                   <div className="grid grid-cols-3 gap-2 mt-3">
                     <div className="rounded-lg bg-muted/50 p-2 text-center">
@@ -378,6 +418,31 @@ export function AnalyticsView() {
           })}
         </TabsContent>
       </Tabs>
+
+      {/* Delete session confirmation */}
+      <AlertDialog
+        open={!!deleteTarget}
+        onOpenChange={(v) => !v && setDeleteTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this session?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the session and all its logged sets.
+              This can&apos;t be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteSession}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

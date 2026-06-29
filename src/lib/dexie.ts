@@ -13,6 +13,10 @@ import type {
   Biometric,
   WaterIntake,
   DayLabel,
+  PersonalRecord,
+  Milestone,
+  StreakRecord,
+  RoutineTemplate,
 } from "./types";
 
 export class GymDB extends Dexie {
@@ -25,11 +29,14 @@ export class GymDB extends Dexie {
   session_sets!: Table<SessionSet, string>;
   biometrics!: Table<Biometric, string>;
   water_intake!: Table<WaterIntake, string>;
+  personal_records!: Table<PersonalRecord, string>;
+  milestones!: Table<Milestone, string>;
+  streak!: Table<StreakRecord, string>;
+  templates!: Table<RoutineTemplate, string>;
 
   constructor() {
     super("gym_tracker_db");
     this.version(1).stores({
-      // & = primary key, * = multi-entry index
       exercises: "&id, name, exercise_type, equipment_id, target_muscle",
       equipment: "&id, name, kind",
       routine_versions: "&id, effective_week, is_active, created_at",
@@ -40,6 +47,23 @@ export class GymDB extends Dexie {
       session_sets: "&id, session_id, node_id, exercise_id, logged_at",
       biometrics: "&id, tier, metric, logged_at",
       water_intake: "&id, logged_at",
+    });
+    // v2: add PR, milestones, streak, templates tables
+    this.version(2).stores({
+      exercises: "&id, name, exercise_type, equipment_id, target_muscle",
+      equipment: "&id, name, kind",
+      routine_versions: "&id, effective_week, is_active, created_at",
+      routine_nodes:
+        "&id, version_id, day_of_week, block_type, sequence_order, exercise_id",
+      day_labels: "&id, version_id, day_of_week, is_active",
+      sessions: "&id, date, version_id, status, started_at",
+      session_sets: "&id, session_id, node_id, exercise_id, logged_at",
+      biometrics: "&id, tier, metric, logged_at",
+      water_intake: "&id, logged_at",
+      personal_records: "&id, exercise_id, achieved_at",
+      milestones: "&id, type, achieved_at",
+      streak: "&id",
+      templates: "&id, name, category, difficulty",
     });
   }
 }

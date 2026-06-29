@@ -15,6 +15,23 @@ import type {
   SetOverride,
   ExerciseType,
 } from "@/lib/types";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { ExerciseEditorRow } from "./exercise-editor-row";
 import { AddExerciseDialog } from "./add-exercise-dialog";
 import { VisualTagBadge } from "./visual-tag-badge";
@@ -22,14 +39,27 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-} from "@/components/ui/sheet";
-import { Lock, Plus, Save, ArrowLeft, Trash2 } from "lucide-react";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  duplicateDay,
+  applyDeloadWeek,
+} from "@/lib/session-helpers";
+import { Lock, Plus, Save, ArrowLeft, Trash2, Copy, TrendingDown, GripVertical } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 const DAY_NAMES = [
   "Sunday",
@@ -45,6 +75,60 @@ function uid(prefix: string): string {
   return `${prefix}_${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36)}`;
 }
 
+// ---- Sortable wrapper for ExerciseEditorRow ----
+interface SortableExerciseRowProps {
+  node: RoutineNode;
+  index: number;
+  exercises: Exercise[];
+  onUpdate: (patch: Partial<RoutineNode>) => void;
+  onDelete: () => void;
+}
+
+function SortableExerciseRow({
+  node,
+  index,
+  exercises,
+  onUpdate,
+  onDelete,
+}: SortableExerciseRowProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: node.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className="relative">
+      <button
+        {...attributes}
+        {...listeners}
+        className="absolute left-0 top-0 bottom-0 w-6 flex items-center justify-center cursor-grab active:cursor-grabbing text-muted-foreground/40 hover:text-muted-foreground touch-none"
+        aria-label="Drag to reorder"
+      >
+        <GripVertical className="h-4 w-4" />
+      </button>
+      <div className="pl-6">
+        <ExerciseEditorRow
+          node={node}
+          index={index}
+          exercises={exercises}
+          onUpdate={onUpdate}
+          onDelete={onDelete}
+        />
+      </div>
+    </div>
+  );
+}
+
 export function DayBatchEditor() {
   const { version, loading: vLoading } = useActiveVersion();
   const selectedDay = useAppStore((s) => s.selectedDay);
@@ -58,7 +142,71 @@ export function DayBatchEditor() {
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
+  const [showDuplicate, setShowDuplicate] = useState(false);
+  const [duplicateTarget, setDuplicateTarget] = useState<string>("");
   const { exercises } = useExercises();
+
+  // DnD sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 8 },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  // ---- Drag end handler ----
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    setLocalNodes((prev) => {
+      const exerciseNodes = prev.filter((n) => n.block_type === "exercise");
+      const oldIndex = exerciseNodes.findIndex((n) => n.id === active.id);
+      const newIndex = exerciseNodes.findIndex((n) => n.id === over.id);
+      if (oldIndex === -1 || newIndex === -1) return prev;
+
+      const reordered = arrayMove(exerciseNodes, oldIndex, newIndex);
+      // Reassign sequence_order
+      const reorderedWithSeq = reordered.map((n, i) => ({
+        ...n,
+        sequence_order: i + 1,
+      }));
+
+      // Rebuild full list with pre/exercise/post order
+      const preNodes = prev.filter((n) => n.block_type === "pre");
+      const postNodes = prev.filter((n) => n.block_type === "post");
+      return [...preNodes, ...reorderedWithSeq, ...postNodes];
+    });
+    setDirty(true);
+  };
+
+  // ---- Duplicate day handler ----
+  const handleDuplicate = async () => {
+    if (!duplicateTarget) return;
+    try {
+      await duplicateDay(selectedDay, Number(duplicateTarget) as DayOfWeek);
+      toast.success(
+        `Copied ${DAY_NAMES[selectedDay]} to ${DAY_NAMES[Number(duplicateTarget)]}`
+      );
+      setShowDuplicate(false);
+      setDuplicateTarget("");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to duplicate day");
+    }
+  };
+
+  // ---- Deload week handler ----
+  const handleDeload = async () => {
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      await applyDeloadWeek(today);
+      toast.success("Deload week created — volume reduced to 60%, weight to 85%");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to create deload week");
+    }
+  };
 
   // Load nodes for the selected day
   const loadDayNodes = useCallback(async () => {
@@ -326,43 +474,83 @@ export function DayBatchEditor() {
         <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
           Exercises ({exerciseNodes.length})
         </h2>
-      </div>
-
-      <div className="space-y-3">
-        {exerciseNodes.map((node, idx) => (
-          <ExerciseEditorRow
-            key={node.id}
-            node={node}
-            index={idx + 1}
-            exercises={exercises}
-            onUpdate={(patch) => updateNode(node.id, patch)}
-            onDelete={() => deleteNode(node.id)}
-          />
-        ))}
-
-        {exerciseNodes.length === 0 && (
-          <div className="rounded-xl border border-dashed py-8 text-center">
-            <p className="text-sm text-muted-foreground mb-3">
-              No exercises yet for this day
-            </p>
-            <Button onClick={() => setShowAdd(true)} variant="outline" size="sm">
-              <Plus className="h-4 w-4" />
-              Add first exercise
-            </Button>
-          </div>
+        {exerciseNodes.length > 1 && (
+          <span className="text-[10px] text-muted-foreground">
+            Drag handle to reorder
+          </span>
         )}
       </div>
 
-      {/* Add exercise button */}
-      {exerciseNodes.length > 0 && (
-        <Button
-          onClick={() => setShowAdd(true)}
-          variant="outline"
-          className="w-full mt-3 gap-1.5 border-dashed"
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext
+          items={exerciseNodes.map((n) => n.id)}
+          strategy={verticalListSortingStrategy}
         >
-          <Plus className="h-4 w-4" />
-          Add Exercise Node
-        </Button>
+          <div className="space-y-3">
+            {exerciseNodes.map((node, idx) => (
+              <SortableExerciseRow
+                key={node.id}
+                node={node}
+                index={idx + 1}
+                exercises={exercises}
+                onUpdate={(patch) => updateNode(node.id, patch)}
+                onDelete={() => deleteNode(node.id)}
+              />
+            ))}
+          </div>
+        </SortableContext>
+      </DndContext>
+
+      {exerciseNodes.length === 0 && (
+        <div className="rounded-xl border border-dashed py-8 text-center">
+          <p className="text-sm text-muted-foreground mb-3">
+            No exercises yet for this day
+          </p>
+          <Button onClick={() => setShowAdd(true)} variant="outline" size="sm">
+            <Plus className="h-4 w-4" />
+            Add first exercise
+          </Button>
+        </div>
+      )}
+
+      {/* Day actions */}
+      {exerciseNodes.length > 0 && (
+        <div className="mt-3 space-y-2">
+          <Button
+            onClick={() => setShowAdd(true)}
+            variant="outline"
+            className="w-full gap-1.5 border-dashed"
+          >
+            <Plus className="h-4 w-4" />
+            Add Exercise Node
+          </Button>
+
+          {/* Day utilities */}
+          <div className="flex gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="flex-1 gap-1.5 text-xs"
+              onClick={() => setShowDuplicate(true)}
+            >
+              <Copy className="h-3.5 w-3.5" />
+              Copy to...
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="flex-1 gap-1.5 text-xs"
+              onClick={handleDeload}
+            >
+              <TrendingDown className="h-3.5 w-3.5" />
+              Deload week
+            </Button>
+          </div>
+        </div>
       )}
 
       {/* Add exercise dialog */}
@@ -372,6 +560,49 @@ export function DayBatchEditor() {
         exercises={exercises}
         onSelect={addExercise}
       />
+
+      {/* Duplicate day dialog */}
+      <Dialog open={showDuplicate} onOpenChange={setShowDuplicate}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Copy {DAY_NAMES[selectedDay]} to...</DialogTitle>
+            <DialogDescription>
+              Copies all exercises (not fixed blocks) to the selected day. The
+              target day&apos;s existing exercises will be replaced.
+            </DialogDescription>
+          </DialogHeader>
+          <Select value={duplicateTarget} onValueChange={setDuplicateTarget}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select target day..." />
+            </SelectTrigger>
+            <SelectContent>
+              {DAY_NAMES.map((name, idx) => (
+                <SelectItem
+                  key={idx}
+                  value={String(idx)}
+                  disabled={idx === selectedDay}
+                >
+                  {name}
+                  {idx === selectedDay && " (current)"}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDuplicate(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleDuplicate}
+              disabled={!duplicateTarget}
+              className="gap-1.5"
+            >
+              <Copy className="h-4 w-4" />
+              Copy Exercises
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

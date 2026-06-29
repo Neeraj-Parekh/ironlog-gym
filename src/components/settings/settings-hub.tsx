@@ -28,11 +28,17 @@ import {
   User,
   Palette,
   Download,
+  Dumbbell,
+  Volume2,
+  Zap,
+  Calculator,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ThemeControls } from "@/components/theme/theme-controls";
 import { useState } from "react";
 import { ExportDialog } from "@/components/export/export-dialog";
+import { DataManagementSection } from "@/components/settings/data-management";
+import { ExerciseCatalogDialog } from "@/components/routine/exercise-catalog-dialog";
 
 const SUB_PAGES: Array<{
   view: "ai_gateway" | "analytics" | "biometrics";
@@ -78,15 +84,26 @@ const NOTIFICATION_OPTIONS: Array<{
 export function SettingsHub() {
   const setView = useAppStore((s) => s.setView);
   const [showExport, setShowExport] = useState(false);
+  const [showCatalog, setShowCatalog] = useState(false);
   const {
     hapticsEnabled,
     restNotificationStyle,
     defaultRestSeconds,
     autoStartRest,
+    soundEnabled,
+    soundEffect,
+    waterGoalMl,
+    showProgressionSuggestions,
+    showWarmupCalc,
     setHapticsEnabled,
     setRestNotificationStyle,
     setDefaultRestSeconds,
     setAutoStartRest,
+    setSoundEnabled,
+    setSoundEffect,
+    setWaterGoalMl,
+    setShowProgressionSuggestions,
+    setShowWarmupCalc,
   } = useSettingsStore();
 
   return (
@@ -155,10 +172,28 @@ export function SettingsHub() {
             </div>
             <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
           </button>
+
+          {/* Exercise catalog */}
+          <button
+            onClick={() => setShowCatalog(true)}
+            className="w-full flex items-center gap-3 rounded-xl border bg-card p-3 text-left hover:bg-accent/50 transition-colors"
+          >
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg text-violet-500 bg-violet-500/10">
+              <Dumbbell className="h-5 w-5" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-medium text-sm">Exercise Catalog</p>
+              <p className="text-xs text-muted-foreground line-clamp-1">
+                Edit, rename, or delete exercises in your library
+              </p>
+            </div>
+            <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+          </button>
         </div>
       </div>
 
       <ExportDialog open={showExport} onOpenChange={setShowExport} />
+      <ExerciseCatalogDialog open={showCatalog} onOpenChange={setShowCatalog} />
 
       {/* Appearance / Theme */}
       <div>
@@ -304,9 +339,112 @@ export function SettingsHub() {
                 </div>
               </div>
             </div>
+
+            {/* Sound effects */}
+            <div className="flex items-center justify-between py-3">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted">
+                  <Volume2 className="h-4 w-4" />
+                </div>
+                <div>
+                  <Label className="text-sm font-medium cursor-pointer">
+                    Sound Effects
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Play sound on rest completion
+                  </p>
+                </div>
+              </div>
+              <Switch checked={soundEnabled} onCheckedChange={setSoundEnabled} />
+            </div>
+
+            {/* Sound effect type */}
+            {soundEnabled && (
+              <div className="py-3">
+                <Label className="text-xs font-medium mb-1.5 block">
+                  Sound type
+                </Label>
+                <Select value={soundEffect} onValueChange={(v) => setSoundEffect(v as typeof soundEffect)}>
+                  <SelectTrigger className="h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="chime">Chime (3-note ascending)</SelectItem>
+                    <SelectItem value="beep">Beep (single tone)</SelectItem>
+                    <SelectItem value="click">Click (short)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {/* Water goal override */}
+            <div className="py-3">
+              <Label className="text-xs font-medium mb-1.5 block">
+                Water goal (0 = auto from bodyweight)
+              </Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  min={0}
+                  step={100}
+                  value={waterGoalMl}
+                  onChange={(e) => setWaterGoalMl(Number(e.target.value))}
+                  className="h-9 w-24 text-center font-semibold"
+                />
+                <span className="text-sm text-muted-foreground">ml</span>
+                <span className="text-xs text-muted-foreground ml-2">
+                  {waterGoalMl === 0 ? "Auto: ~35ml/kg bodyweight" : "Fixed override"}
+                </span>
+              </div>
+            </div>
+
+            {/* Progression suggestions */}
+            <div className="flex items-center justify-between py-3">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted">
+                  <Zap className="h-4 w-4" />
+                </div>
+                <div>
+                  <Label className="text-sm font-medium cursor-pointer">
+                    Progression Suggestions
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Show weight/reps recommendations in workout HUD
+                  </p>
+                </div>
+              </div>
+              <Switch
+                checked={showProgressionSuggestions}
+                onCheckedChange={setShowProgressionSuggestions}
+              />
+            </div>
+
+            {/* Warm-up calculator */}
+            <div className="flex items-center justify-between py-3">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted">
+                  <Calculator className="h-4 w-4" />
+                </div>
+                <div>
+                  <Label className="text-sm font-medium cursor-pointer">
+                    Warm-up Calculator
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Show warm-up ramp for barbell exercises
+                  </p>
+                </div>
+              </div>
+              <Switch
+                checked={showWarmupCalc}
+                onCheckedChange={setShowWarmupCalc}
+              />
+            </div>
           </CardContent>
         </Card>
       </div>
+
+      {/* Data management */}
+      <DataManagementSection />
 
       {/* About */}
       <Card className="border-dashed bg-muted/30">

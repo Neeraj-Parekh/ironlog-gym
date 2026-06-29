@@ -20,6 +20,11 @@ export interface LoggedSet {
   reps_completed: number;
   is_fallback: boolean;
   logged_at: string;
+  // Extended (v3):
+  rpe?: number;
+  tempo?: string;
+  set_type?: "working" | "warmup" | "dropset" | "failure";
+  notes?: string;
 }
 
 export interface RestTimerState {
@@ -50,7 +55,13 @@ interface ActiveSessionState {
     weight: number,
     reps: number,
     isFallback: boolean,
-    restSeconds?: number
+    restSeconds?: number,
+    options?: {
+      rpe?: number;
+      tempo?: string;
+      set_type?: "working" | "warmup" | "dropset" | "failure";
+      notes?: string;
+    }
   ) => void;
   markStationBusy: (nodeId: string) => void;
   unmarkStationBusy: (nodeId: string) => void;
@@ -110,7 +121,7 @@ export const useActiveSessionStore = create<ActiveSessionState>((set, get) => ({
     });
   },
 
-  logSet: (nodeId, exerciseId, exerciseName, weight, reps, isFallback, restSeconds) => {
+  logSet: (nodeId, exerciseId, exerciseName, weight, reps, isFallback, restSeconds, options) => {
     const newSet: LoggedSet = {
       id: `set_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
       node_id: nodeId,
@@ -121,6 +132,10 @@ export const useActiveSessionStore = create<ActiveSessionState>((set, get) => ({
       reps_completed: reps,
       is_fallback: isFallback,
       logged_at: new Date().toISOString(),
+      rpe: options?.rpe,
+      tempo: options?.tempo,
+      set_type: options?.set_type ?? "working",
+      notes: options?.notes,
     };
     set({ loggedSets: [...get().loggedSets, newSet] });
 

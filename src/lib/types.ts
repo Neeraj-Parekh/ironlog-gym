@@ -146,6 +146,11 @@ export interface SessionSet {
   rest_seconds?: number;
   is_fallback: boolean;
   logged_at: string; // ISO timestamp
+  // Extended fields (v3):
+  rpe?: number; // Rate of Perceived Exertion 1-10
+  tempo?: string; // 4-digit e.g. "3010"
+  set_type?: "working" | "warmup" | "dropset" | "failure";
+  notes?: string;
 }
 
 // ---- Biometrics ----
@@ -154,7 +159,11 @@ export type BiometricMetric =
   | "body_weight"
   | "height"
   | "muscle_mass"
-  | "body_fat_pct";
+  | "body_fat_pct"
+  | "sleep_hours"
+  | "soreness"
+  | "mood"
+  | "readiness";
 
 export interface Biometric {
   id: string;
@@ -163,6 +172,45 @@ export interface Biometric {
   value: number;
   unit: string;
   logged_at: string; // ISO timestamp
+}
+
+// ---- Personal Record (PR) ----
+export interface PersonalRecord {
+  id: string;
+  exercise_id: string;
+  exercise_name: string;
+  estimated_1rm: number;
+  weight_kg: number;
+  reps: number;
+  session_id: string;
+  achieved_at: string; // ISO timestamp
+}
+
+// ---- Milestone ----
+export type MilestoneType =
+  | "total_volume"
+  | "session_count"
+  | "streak"
+  | "first_1rm"
+  | "exercise_pr";
+
+export interface Milestone {
+  id: string;
+  type: MilestoneType;
+  label: string;
+  description: string;
+  achieved_at: string;
+  value: number;
+  unit: string;
+}
+
+// ---- Streak tracking ----
+export interface StreakRecord {
+  id: string;
+  current_streak: number;
+  longest_streak: number;
+  last_workout_date: string; // ISO date
+  updated_at: string;
 }
 
 // ---- Water intake ----
@@ -179,4 +227,15 @@ export interface DayLabel {
   day_of_week: DayOfWeek;
   label: string;
   is_active: boolean;
+}
+
+// ---- Routine template (pre-built routines for import) ----
+export interface RoutineTemplate {
+  id: string;
+  name: string;
+  description: string;
+  category: "PPL" | "upper_lower" | "full_body" | "531" | "custom";
+  difficulty: "beginner" | "intermediate" | "advanced";
+  days: number;
+  template_data: unknown; // serialized routine structure
 }
