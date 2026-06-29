@@ -40,3 +40,58 @@ Stage Summary:
 - Dev server running on port 3000, all routes return 200
 - Mobile viewport (iPhone 14) verified via Agent Browser
 - Sticky footer (bottom nav) confirmed at viewport bottom
+
+---
+Task ID: nav-refactor + phase-2
+Agent: main
+Task: Nav restructure (3-tab + Settings hub) + 3-state color button + Phase 2 Active Workout HUD with rest timer pill
+
+Work Log:
+- Created `src/lib/store/settings-store.ts` — persisted settings (hapticsEnabled, restNotificationStyle: color_wave|haptics|both|silent, defaultRestSeconds, autoStartRest) using zustand persist middleware to localStorage
+- Updated `src/lib/store/app-store.ts` — added "settings" + "active_session" views, activeSessionId tracking
+- Restructured `src/components/layout/bottom-nav.tsx` — 3 primary tabs (Routine, Workout, Profile) replacing the old 5-tab nav. AI Import, Analytics, Biometrics now live under the Profile hub. Sub-view highlighting (day_batch_edit→Routine, active_session→Workout, etc.)
+- Created `src/components/settings/settings-hub.tsx` — Profile page with: profile header, 3 tool links (AI Import, Analytics, Body), Workout Preferences card (haptics toggle, notification style dropdown, auto-start rest toggle, default rest duration with quick presets 60/90/120/180s)
+- Updated `src/components/layout/app-header.tsx` — back arrow for settings sub-pages (ai_gateway/analytics/biometrics) and day_batch_edit
+- Refactored `src/components/routine/exercise-editor-row.tsx` — 3-state color cycling button:
+  - Mode 0 (dull/muted): read-only display with sets/reps/rest summary + per-set target chips
+  - Mode 1 (amber): light editing — sets/reps/rest inputs + per-set weight×reps overrides
+  - Mode 2 (rose): heavy editing — inline rename, fallback linking, remove exercise
+  Button cycles View→Tune→Edit on each tap, with color + ring intensity increasing per mode
+- Created `src/lib/store/active-session-store.ts` — zustand store for the live workout state machine: session, queue (deep copy), currentIndex, loggedSets, busyNodeIds, restTimer (absolute timestamps). Actions: logSet, markStationBusy, deferCurrentToEnd, swapToFallback, skipCurrent, startRest/adjustRest/stopRest/markRestCompleted
+- Created `src/lib/plate-calc.ts` — greedy plate-loading calculator with normalized plate keys (fixes "20.0" vs "20" string mismatch), nearest-lower/higher suggestions, resolveBarbellEquipment (prefers exercise's preferred bar, falls back to 20kg Olympic)
+- Created `src/lib/fallback-resolver.ts` — fallback state machine: queries exercise.fallback_ids, finds first available, builds new RoutineNode for swap. Returns "available", "all_busy", or "no_fallbacks" resolution
+- Created `src/lib/session-helpers.ts` — startSessionForDay (deep-copies plan_snapshot, persists Session to Dexie, launches HUD), endAndPersistSession (saves logged sets, marks session completed)
+- Created `src/components/workout/rest-timer-pill.tsx` — floating pill (not full screen) with:
+  - Absolute timestamp tracking (survives background tab suspension via visibilitychange event)
+  - +/-15s adjustment buttons
+  - Progress fill bar (amber→lime→emerald color shift)
+  - Color-wave side bar animation on completion (configurable via settings)
+  - Optional vibration on completion (configurable via settings)
+  - "Rest complete" state with Done button
+- Created `src/components/workout/set-inputs.tsx` — oversized weight/reps input component, keyed by nodeId for auto-reset on exercise change. Uses ref-based pattern to sync values to parent without setState-in-effect lint violations
+- Created `src/components/workout/active-session-hud.tsx` — the main Phase 2 HUD:
+  - Progress bar (exercises completed + total volume)
+  - Current exercise card with name, tag, set counter, target hint, logged sets history
+  - Oversized weight/reps inputs with ±2.5kg and ±1 rep buttons
+  - Plate loading hint with nearest-achievable suggestions
+  - LOG SET button (green, oversized, bottom)
+  - STATION BUSY button (amber, triggers fallback state machine)
+  - SKIP button (defers to next exercise)
+  - Manual rest timer start/stop controls
+  - Session complete screen with save
+  - End session confirmation dialog
+- Updated `src/components/workout/active-workout-view.tsx` — launches session via startSessionForDay, shows today's session + quick-start for other days
+
+Stage Summary:
+- Nav restructured to 3 tabs (Routine, Workout, Profile) — AI Import + Stats + Body moved under Profile hub
+- 3-state color button working: View (dull) → Tune (amber, sets/reps/rest) → Edit (rose, rename/fallbacks/remove)
+- Settings hub with haptics toggle, notification style (color_wave/haptics/both/silent), auto-start rest, default rest duration
+- Phase 2 Active Workout HUD fully functional:
+  - LOG SET verified: 80kg×8 logged, volume=640kg, set counter advanced
+  - Rest timer pill: +/-15s adjustment verified (180s→195s), auto-starts on log
+  - STATION BUSY fallback verified: Bench Press → Pec Deck Fly swap with FALLBACK badge
+  - Plate loading verified: 80kg = 1×25kg + 1×5kg per side (correct with 20kg Olympic bar)
+  - Color-wave notification + haptics configurable in settings
+- Lint passes clean (0 errors, 0 warnings)
+- Dev server running healthy on port 3000
+- All features browser-verified via Agent Browser (iPhone 14 viewport)

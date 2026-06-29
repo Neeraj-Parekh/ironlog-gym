@@ -10,6 +10,8 @@ import { AIPortal } from "@/components/ai-gateway/ai-portal";
 import { ActiveWorkoutView } from "@/components/workout/active-workout-view";
 import { AnalyticsView } from "@/components/analytics/analytics-view";
 import { BiometricsView } from "@/components/biometrics/biometrics-view";
+import { SettingsHub } from "@/components/settings/settings-hub";
+import { ActiveSessionHUD } from "@/components/workout/active-session-hud";
 import { Loader2 } from "lucide-react";
 
 export default function Home() {
@@ -56,8 +58,10 @@ export default function Home() {
       <main className="flex-1 mx-auto w-full max-w-2xl">
         {view === "week" && <WeekView />}
         {view === "day_batch_edit" && <DayBatchEditor />}
+        {view === "settings" && <SettingsHub />}
         {view === "ai_gateway" && <AIPortal />}
         {view === "active_workout" && <ActiveWorkoutView />}
+        {view === "active_session" && <ActiveSessionHUD />}
         {view === "analytics" && <AnalyticsView />}
         {view === "biometrics" && <BiometricsView />}
       </main>

@@ -1,29 +1,33 @@
 "use client";
 import { useAppStore, type AppView } from "@/lib/store/app-store";
 import { cn } from "@/lib/utils";
-import {
-  CalendarDays,
-  Bot,
-  Dumbbell,
-  BarChart3,
-  Droplets,
-} from "lucide-react";
+import { CalendarDays, Dumbbell, Settings } from "lucide-react";
 
 const NAV_ITEMS: Array<{ view: AppView; label: string; icon: typeof CalendarDays }> = [
   { view: "week", label: "Routine", icon: CalendarDays },
-  { view: "ai_gateway", label: "AI Import", icon: Bot },
   { view: "active_workout", label: "Workout", icon: Dumbbell },
-  { view: "analytics", label: "Stats", icon: BarChart3 },
-  { view: "biometrics", label: "Body", icon: Droplets },
+  { view: "settings", label: "Profile", icon: Settings },
 ];
 
 /**
- * Bottom navigation — sticky to viewport bottom (thumb-zone centric).
- * Acts as the sticky footer per layout rules.
+ * Bottom navigation — 3 primary tabs (thumb-zone centric).
+ * AI Import, Stats, Body live under the Profile/Settings hub.
+ * Sticky to viewport bottom as the footer.
  */
 export function BottomNav() {
   const view = useAppStore((s) => s.view);
   const setView = useAppStore((s) => s.setView);
+
+  // Treat sub-views (ai_gateway, analytics, biometrics, day_batch_edit,
+  // active_session) as belonging to their parent tab for highlight purposes
+  const activeTab: AppView =
+    view === "day_batch_edit"
+      ? "week"
+      : view === "active_session"
+      ? "active_workout"
+      : view === "ai_gateway" || view === "analytics" || view === "biometrics"
+      ? "settings"
+      : view;
 
   return (
     <nav
@@ -33,14 +37,14 @@ export function BottomNav() {
       <div className="mx-auto flex max-w-2xl items-stretch justify-around">
         {NAV_ITEMS.map((item) => {
           const Icon = item.icon;
-          const active = view === item.view;
+          const active = activeTab === item.view;
           return (
             <button
               key={item.view}
               onClick={() => setView(item.view)}
               className={cn(
                 "flex flex-1 flex-col items-center gap-0.5 py-2.5 transition-colors",
-                "min-h-[52px] touch-target",
+                "min-h-[52px]",
                 active
                   ? "text-foreground"
                   : "text-muted-foreground hover:text-foreground"
@@ -49,8 +53,8 @@ export function BottomNav() {
             >
               <div
                 className={cn(
-                  "flex h-8 w-8 items-center justify-center rounded-lg transition-colors",
-                  active && "bg-accent"
+                  "flex h-9 w-9 items-center justify-center rounded-xl transition-all",
+                  active && "bg-accent scale-105"
                 )}
               >
                 <Icon className="h-5 w-5" />

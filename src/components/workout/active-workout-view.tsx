@@ -1,15 +1,19 @@
 "use client";
+import { useState } from "react";
 import { useAppStore } from "@/lib/store/app-store";
+import { useActiveSessionStore } from "@/lib/store/active-session-store";
 import {
   useActiveVersion,
   useRoutineNodes,
   useDayLabels,
 } from "@/hooks/use-routine";
-import type { DayOfWeek, RoutineNode } from "@/lib/types";
+import { startSessionForDay } from "@/lib/session-helpers";
+import type { DayOfWeek } from "@/lib/types";
 import { VisualTagBadge } from "@/components/routine/visual-tag-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Play, Lock, Clock, Dumbbell } from "lucide-react";
+import { Play, Lock, Clock, Dumbbell, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 const DAYS: DayOfWeek[] = [1, 2, 3, 4, 5, 6, 0];
 
@@ -19,15 +23,24 @@ export function ActiveWorkoutView() {
   const { version, loading } = useActiveVersion();
   const { nodes } = useRoutineNodes(version?.id);
   const { labels } = useDayLabels(version?.id);
+  const [starting, setStarting] = useState<DayOfWeek | null>(null);
 
   const today = new Date().getDay() as DayOfWeek;
   const todayNodes = nodes.filter((n) => n.day_of_week === today);
   const exercises = todayNodes.filter((n) => n.block_type === "exercise");
 
-  const startWorkout = (day: DayOfWeek) => {
-    setSelectedDay(day);
-    // Phase 2 will launch the HUD here
-    toast("Active Workout HUD coming in Phase 2 — stay tuned!");
+  const startWorkout = async (day: DayOfWeek) => {
+    setStarting(day);
+    try {
+      await startSessionForDay(day);
+      toast.success("Session started — let's lift!");
+    } catch (e) {
+      toast.error(
+        e instanceof Error ? e.message : "Failed to start session"
+      );
+    } finally {
+      setStarting(null);
+    }
   };
 
   return (
@@ -48,11 +61,21 @@ export function ActiveWorkoutView() {
           {exercises.length > 0 ? (
             <Button
               onClick={() => startWorkout(today)}
+              disabled={starting !== null}
               className="w-full gap-2 bg-background text-foreground hover:bg-background/90"
               size="lg"
             >
-              <Play className="h-5 w-5" />
-              Start Workout
+              {starting === today ? (
+                <>
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  Starting...
+                </>
+              ) : (
+                <>
+                  <Play className="h-5 w-5" />
+                  Start Workout
+                </>
+              )}
             </Button>
           ) : (
             <p className="text-sm text-background/70 text-center py-2">
@@ -77,7 +100,8 @@ export function ActiveWorkoutView() {
               <button
                 key={day}
                 onClick={() => startWorkout(day)}
-                className="w-full flex items-center justify-between rounded-xl border bg-card p-3 text-left hover:bg-accent/50 transition-colors"
+                disabled={starting !== null}
+                className="w-full flex items-center justify-between rounded-xl border bg-card p-3 text-left hover:bg-accent/50 transition-colors disabled:opacity-50"
               >
                 <div>
                   <p className="font-medium text-sm">{labels[day]}</p>
@@ -89,6 +113,9 @@ export function ActiveWorkoutView() {
                   {dayExercises.slice(0, 3).map((ex) => (
                     <VisualTagBadge key={ex.id} type={ex.exercise_type} />
                   ))}
+                  {starting === day && (
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  )}
                 </div>
               </button>
             );
@@ -96,25 +123,30 @@ export function ActiveWorkoutView() {
         </div>
       </div>
 
-      {/* Coming soon notice */}
+      {/* Features notice */}
       <Card className="border-dashed bg-muted/30">
-        <CardContent className="pt-4 pb-4 flex items-start gap-2">
-          <Clock className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
-          <div className="text-xs text-muted-foreground">
-            <p className="font-medium text-foreground mb-1">
-              Phase 2 — Active Workout HUD
-            </p>
-            <p>
-              Oversized LOG SET / STATION BUSY / SKIP buttons, smart fallback
-              state machine, background-proof rest timer, and plate-loading
-              calculator. Coming next.
-            </p>
+        <CardContent className="pt-4 pb-4">
+          <div className="flex items-start gap-2 text-xs text-muted-foreground">
+            <Clock className="h-4 w-4 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-medium text-foreground mb-1">
+                Active Workout HUD Features
+              </p>
+              <ul className="list-disc pl-4 space-y-0.5">
+                <li>Oversized LOG SET / STATION BUSY / SKIP buttons</li>
+                <li>Smart fallback: auto-swaps to alternatives when busy</li>
+                <li>Rest timer pill with +/-15s adjustments</li>
+                <li>Color-wave completion (no jarring full-screen alert)</li>
+                <li>Plate-loading calculator for barbell exercises</li>
+                <li>Survives screen lock (absolute timestamps)</li>
+              </ul>
+              <p className="mt-2">
+                Configure haptics &amp; notification style in Profile → Preferences.
+              </p>
+            </div>
           </div>
         </CardContent>
       </Card>
     </div>
   );
 }
-
-// Inline toast import (sonner) — keeps the stub self-contained
-import { toast } from "sonner";
