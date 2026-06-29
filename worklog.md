@@ -95,3 +95,70 @@ Stage Summary:
 - Lint passes clean (0 errors, 0 warnings)
 - Dev server running healthy on port 3000
 - All features browser-verified via Agent Browser (iPhone 14 viewport)
+
+---
+Task ID: phases-3-4-5-theme-json-pwa
+Agent: main
+Task: Theme system (dark/light + 5 color schemas) + JSON schema v3 expansion + Phase 3 (Biometrics/Water) + Phase 4 (Analytics) + Phase 5 (Export) + PWA optimizations
+
+Work Log:
+- THEME SYSTEM:
+  - Created `src/lib/theme-schemas.ts` — 5 color schemas (Iron=emerald, Ember=amber, Rose=pink, Ocean=teal, Violet=purple), each with light + dark variants defining primary/ring/accent/chart-1..5 CSS variables
+  - Created `src/lib/store/theme-store.ts` — persisted theme store (mode: light/dark/system, colorSchema) via zustand persist
+  - Created `src/components/theme/theme-applier.tsx` — applies CSS variables dynamically, listens for system theme changes, sets color-scheme for native controls
+  - Created `src/components/theme/theme-controls.tsx` — schema picker (5 color circles) + Light/Dark/Auto toggle
+  - Added ThemeApplier to root layout, ThemeControls to Settings hub under "Appearance" section
+
+- JSON SCHEMA v3 EXPANSION:
+  - Expanded blank-schema.json to v3 with: target_muscle, is_compound, RPE (1-10), tempo (4-digit e.g. "3010"), rest_after_seconds per set, set_type (working/warmup/dropset/failure), fallbacks_detail (exercise_id + name + reason + priority), superset_with, notes, block_type
+  - Expanded inventory.json with: gym_info (name/location/timezone/peak_hours), barbell knurling + bearing type, dumbbell max_weight_kg, plate material, machine zone + adjustable components
+  - Updated zod schemas to accept all new fields with safe defaults
+  - Sanitizer now merges fallbacks_detail into fallback_ids, validates tempo format, warns on missing superset targets
+  - AI portal preview now shows: Compound badge, target_muscle, max RPE, fallback count, superset indicator
+
+- PHASE 3 — BIOMETRICS & WATER:
+  - Created `src/hooks/use-biometrics.ts` — useWaterIntake (today's entries + total + add/remove), useWater24h (24h cumulative graph data), useBiometrics (all entries + addBiometric + getLatest + getHistory + daysSince)
+  - Created `src/components/biometrics/water-tracker.tsx` — progress bar (2500ml goal), 4 quick-add buttons (250/500/750/1000ml), 24h cumulative area chart (recharts), today's log list with delete
+  - Created `src/components/biometrics/biometric-prompts.tsx` — Tier-1 bodyweight card (prompts every 10 days, amber accent), Tier-2 body composition card (height/muscle mass/body fat %, prompts every 90 days, locks after save, violet accent)
+  - Updated BiometricsView to use real components
+
+- PHASE 4 — ANALYTICS:
+  - Created `src/lib/analytics.ts` — computeTotalVolume, estimate1RM (Epley formula), bestSet, computeProgressiveOverload (Gv: growth/plateau/regression via rolling window comparison), summarizeSession, buildExerciseTrend
+  - Created `src/hooks/use-analytics.ts` — useSessions (completed sessions with sets), useAllExercises, useLoggedExercises
+  - Created `src/components/analytics/analytics-view.tsx` — 4 summary stat cards (sessions/sets/volume/best 1RM), 3 tabs:
+    - Weekly: 8-week volume bar chart
+    - Exercise: dropdown picker, progressive overload velocity card (growth=green/plateau=amber/regression=red with % change), volume trend area chart, estimated 1RM line chart
+    - History: session cards with volume/sets/best 1RM/duration
+
+- PHASE 5 — EXPORT ENGINE:
+  - Created `src/lib/export-engine.ts` — generateSessionMarkdown (compact LLM-optimized format with volume, 1RM, bodyweight, weekly volume context, per-set table, system instruction for external AI), generateRoutineBackup (full JSON with version/nodes/exercises/equipment/day_labels)
+  - Created `src/components/export/export-dialog.tsx` — Session MD / Routine JSON toggle, session picker, generate button, preview with copy-to-clipboard + download-as-file
+  - Added "Export Data" tool button in Settings hub
+
+- PWA OPTIMIZATIONS:
+  - Created `src/hooks/use-wake-lock.ts` — Screen Wake Lock API integration (keeps screen on during active workout, auto-reacquires on tab refocus)
+  - Integrated wake lock into ActiveSessionHUD (active while session running, releases on completion)
+  - Enhanced service worker: navigation request handling, offline.html fallback page, stale-while-revalidate for assets
+  - Created `public/offline.html` — styled offline fallback page
+  - Generated PNG icons (192/512/180px) from SVG via sharp
+  - Updated manifest with screenshots, shortcuts (Start Workout, Routine), display_override
+  - Updated layout metadata with full icon set (SVG + 192 + 512 PNG), apple-touch-icon, formatDetection, mobile-web-app-capable
+  - Enabled service worker in development (was production-only)
+
+Stage Summary:
+- Theme system: 5 color schemas × light/dark = 10 combinations, persisted, with system-auto mode
+- JSON v3: AI can now generate richer payloads with RPE, tempo, superset links, compound flags, detailed fallbacks with reasons
+- Phase 3: Water tracker with 24h graph + Tier-1/Tier-2 biometric prompts with time-gated locks
+- Phase 4: Full analytics — volume trends, Epley 1RM estimates, progressive overload velocity, session history
+- Phase 5: Dual export — clipboard Markdown for AI nutrition handoff + JSON routine backup
+- PWA: Wake lock during workouts, offline fallback page, proper PNG icons, app shortcuts
+- ALL verified via Agent Browser:
+  - Theme switching (Iron/Ember/Rose/Ocean/Violet + dark mode) ✓
+  - Water tracking (750ml logged, 1750ml remaining) ✓
+  - Bodyweight logging (78kg, Tier-1) ✓
+  - Complete workout session (4 sets Bench Press, 2560kg volume, 101.3kg 1RM) ✓
+  - Analytics (summary cards + history + weekly chart) ✓
+  - Export (Markdown with full session data + JSON routine backup) ✓
+  - v3 schema import (Barbell Row with Compound badge, RPE 9, 1 fallback) ✓
+- Lint passes clean (0 errors, 0 warnings)
+- Dev server running healthy on port 3000

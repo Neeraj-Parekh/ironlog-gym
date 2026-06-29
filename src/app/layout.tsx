@@ -4,6 +4,7 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { ServiceWorkerRegister } from "@/components/pwa/service-worker-register";
 import { InstallPrompt } from "@/components/pwa/install-prompt";
+import { ThemeApplier } from "@/components/theme/theme-applier";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -26,8 +27,20 @@ export const metadata: Metadata = {
     title: "IronLog",
   },
   icons: {
-    icon: "/icon.svg",
-    apple: "/icon.svg",
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [
+      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+    ],
+  },
+  formatDetection: {
+    telephone: false,
+  },
+  other: {
+    "mobile-web-app-capable": "yes",
   },
 };
 
@@ -54,6 +67,7 @@ export default function RootLayout({
         <Toaster />
         <ServiceWorkerRegister />
         <InstallPrompt />
+        <ThemeApplier />
       </body>
     </html>
   );

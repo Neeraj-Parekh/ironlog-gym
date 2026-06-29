@@ -148,7 +148,7 @@ export function AIPortal() {
           const newEx: Exercise = {
             id: exerciseId,
             name: node.name,
-            target_muscle: "imported",
+            target_muscle: node.target_muscle || "imported",
             exercise_type: node.exercise_type,
             equipment_id: node.equipment_id || "none_bodyweight",
             fallback_ids: node.fallback_ids ?? [],
@@ -162,6 +162,14 @@ export function AIPortal() {
           newExercises.push(newEx);
         } else {
           exerciseId = existingEx.id;
+          // Merge any new fallback_ids into the existing exercise
+          if (node.fallback_ids && node.fallback_ids.length > 0) {
+            const merged = [
+              ...new Set([...existingEx.fallback_ids, ...node.fallback_ids]),
+            ];
+            existingEx.fallback_ids = merged;
+            await db.exercises.put(existingEx);
+          }
         }
 
         // Build sets_override from metrics.sets if present
@@ -170,6 +178,10 @@ export function AIPortal() {
           target_reps: s.target_reps ?? s.reps_completed ?? 10,
           target_weight_kg: s.target_weight_kg ?? s.weight_kg ?? 0,
         }));
+
+        // Use per-set rest if available, else exercise default
+        const firstSetRest = node.metrics.sets?.[0]?.rest_after_seconds;
+        const prescribedRest = firstSetRest ?? 120;
 
         const routineNode: RoutineNode = {
           id: uid("node"),
@@ -186,11 +198,15 @@ export function AIPortal() {
             setsOverride[0]?.target_reps ??
             node.metrics.sets?.[0]?.reps_completed ??
             10,
-          prescribed_rest_seconds: 120,
+          prescribed_rest_seconds: prescribedRest,
           sets_override: setsOverride,
           fallback_ids: node.fallback_ids ?? [],
           equipment_source: {
             type: node.exercise_type === "machine" ? "machine" : "barbell",
+            preferred_id:
+              node.equipment_id && node.equipment_id !== "none_bodyweight"
+                ? node.equipment_id
+                : undefined,
           },
           duration_minutes: node.metrics.duration_minutes,
           intensity_metrics: node.metrics.intensity_metrics as Record<
@@ -359,26 +375,28 @@ export function AIPortal() {
               {" → "}
               {DAYS.find((d) => d.value === targetDay)?.label}
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               {validated.session_payload.exercises_logged.map((node, i) => (
                 <div
                   key={i}
-                  className="flex items-center justify-between rounded-lg border p-2"
+                  className="rounded-lg border p-2.5 space-y-1.5"
                 >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="text-xs font-bold text-muted-foreground shrink-0">
-                      {i + 1}
-                    </span>
-                    <span className="text-sm font-medium truncate">
-                      {node.name}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-xs text-muted-foreground">
-                      {node.metrics.sets?.length ?? 0} sets
-                    </span>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-xs font-bold text-muted-foreground shrink-0">
+                        {i + 1}
+                      </span>
+                      <span className="text-sm font-medium truncate">
+                        {node.name}
+                      </span>
+                      {node.is_compound && (
+                        <span className="text-[9px] font-bold uppercase bg-foreground text-background px-1 rounded">
+                          Compound
+                        </span>
+                      )}
+                    </div>
                     <span
-                      className="rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase"
+                      className="rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase shrink-0"
                       style={{
                         borderColor: TAG_CONFIG[node.exercise_type].border_color,
                         color: TAG_CONFIG[node.exercise_type].border_color,
@@ -387,6 +405,33 @@ export function AIPortal() {
                     >
                       {TAG_CONFIG[node.exercise_type].label}
                     </span>
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap text-[10px] text-muted-foreground">
+                    <span>{node.metrics.sets?.length ?? 0} sets</span>
+                    {node.target_muscle && (
+                      <>
+                        <span>·</span>
+                        <span className="capitalize">{node.target_muscle}</span>
+                      </>
+                    )}
+                    {node.metrics.sets?.some((s) => s.rpe) && (
+                      <>
+                        <span>·</span>
+                        <span>RPE {Math.max(...node.metrics.sets.filter(s => s.rpe).map(s => s.rpe!))}</span>
+                      </>
+                    )}
+                    {node.fallback_ids && node.fallback_ids.length > 0 && (
+                      <>
+                        <span>·</span>
+                        <span>{node.fallback_ids.length} fallback{node.fallback_ids.length > 1 ? "s" : ""}</span>
+                      </>
+                    )}
+                    {node.superset_with && (
+                      <>
+                        <span>·</span>
+                        <span className="text-violet-500">↔ superset</span>
+                      </>
+                    )}
                   </div>
                 </div>
               ))}

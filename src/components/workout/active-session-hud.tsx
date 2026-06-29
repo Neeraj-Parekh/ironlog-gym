@@ -5,6 +5,7 @@ import { useAppStore } from "@/lib/store/app-store";
 import { useActiveSessionStore } from "@/lib/store/active-session-store";
 import { useSettingsStore } from "@/lib/store/settings-store";
 import { useEquipment } from "@/hooks/use-routine";
+import { useWakeLock } from "@/hooks/use-wake-lock";
 import {
   startSessionForDay,
   endAndPersistSession,
@@ -89,6 +90,9 @@ export function ActiveSessionHUD() {
   // to avoid setState-in-effect lint rule
   const currentNode = queue[currentIndex];
   const isFinished = currentIndex >= queue.length;
+
+  // Keep screen on during active workout (releases on session end)
+  useWakeLock(!!session && !isFinished);
 
   if (!session) {
     return (

@@ -1,13 +1,38 @@
 {
   "gym_inventory": {
+    "gym_info": {
+      "name": "Home Gym",
+      "location": "Local",
+      "timezone": "Asia/Calcutta",
+      "peak_hours": []
+    },
     "barbells": [
-      { "id": "bar_std_20", "name": "Olympic Barbell", "weight_kg": 20.0 },
-      { "id": "bar_ez_10", "name": "EZ Curl Bar", "weight_kg": 10.0 },
-      { "id": "bar_trap_25", "name": "Trap/Hex Bar", "weight_kg": 25.0 }
+      {
+        "id": "bar_std_20",
+        "name": "Olympic Barbell",
+        "weight_kg": 20.0,
+        "knurling": 2,
+        "bearing": "bearing"
+      },
+      {
+        "id": "bar_ez_10",
+        "name": "EZ Curl Bar",
+        "weight_kg": 10.0,
+        "knurling": 3,
+        "bearing": "bushing"
+      },
+      {
+        "id": "bar_trap_25",
+        "name": "Trap/Hex Bar",
+        "weight_kg": 25.0,
+        "knurling": 2,
+        "bearing": "bushing"
+      }
     ],
     "dumbbells": {
       "unit": "kg",
-      "available_pairs": [2.5, 5.0, 7.5, 10.0, 12.5, 15.0, 17.5, 20.0, 22.5, 25.0, 27.5, 30.0, 32.5, 35.0, 37.5, 40.0]
+      "available_pairs": [2.5, 5.0, 7.5, 10.0, 12.5, 15.0, 17.5, 20.0, 22.5, 25.0, 27.5, 30.0, 32.5, 35.0, 37.5, 40.0],
+      "max_weight_kg": 40.0
     },
     "weight_plates": {
       "unit": "kg",
@@ -19,7 +44,8 @@
         "15.0": 2,
         "20.0": 4,
         "25.0": 2
-      }
+      },
+      "material": "cast_iron"
     },
     "machines": [
       {
@@ -28,14 +54,20 @@
         "weight_type": "pin_stack",
         "stack_increment_kg": 5.0,
         "max_weight_kg": 100.0,
-        "current_status": "AVAILABLE"
+        "current_status": "AVAILABLE",
+        "zone": "back",
+        "adjustable": [
+          { "component": "seat_height", "positions": ["low", "mid", "high"] },
+          { "component": "thigh_pad", "positions": ["1", "2", "3", "4"] }
+        ]
       },
       {
         "id": "mach_pec_deck_01",
         "name": "Pec Deck Fly",
         "weight_type": "plate_loaded",
         "base_weight_kg": 0.0,
-        "current_status": "AVAILABLE"
+        "current_status": "AVAILABLE",
+        "zone": "chest"
       },
       {
         "id": "mach_chest_press_01",
@@ -43,7 +75,8 @@
         "weight_type": "pin_stack",
         "stack_increment_kg": 5.0,
         "max_weight_kg": 100.0,
-        "current_status": "AVAILABLE"
+        "current_status": "AVAILABLE",
+        "zone": "chest"
       },
       {
         "id": "mach_cable_crossover_01",
@@ -51,21 +84,24 @@
         "weight_type": "pin_stack",
         "stack_increment_kg": 2.5,
         "max_weight_kg": 90.0,
-        "current_status": "AVAILABLE"
+        "current_status": "AVAILABLE",
+        "zone": "cable"
       },
       {
         "id": "mach_leg_press_01",
         "name": "Leg Press 45°",
         "weight_type": "plate_loaded",
         "base_weight_kg": 0.0,
-        "current_status": "AVAILABLE"
+        "current_status": "AVAILABLE",
+        "zone": "legs"
       },
       {
         "id": "mach_hack_squat_01",
         "name": "Hack Squat Machine",
         "weight_type": "plate_loaded",
         "base_weight_kg": 0.0,
-        "current_status": "AVAILABLE"
+        "current_status": "AVAILABLE",
+        "zone": "legs"
       },
       {
         "id": "mach_leg_curl_01",
@@ -73,7 +109,8 @@
         "weight_type": "pin_stack",
         "stack_increment_kg": 2.5,
         "max_weight_kg": 80.0,
-        "current_status": "AVAILABLE"
+        "current_status": "AVAILABLE",
+        "zone": "legs"
       },
       {
         "id": "mach_leg_extension_01",
@@ -81,7 +118,8 @@
         "weight_type": "pin_stack",
         "stack_increment_kg": 2.5,
         "max_weight_kg": 80.0,
-        "current_status": "AVAILABLE"
+        "current_status": "AVAILABLE",
+        "zone": "legs"
       },
       {
         "id": "mach_shoulder_press_01",
@@ -89,7 +127,8 @@
         "weight_type": "pin_stack",
         "stack_increment_kg": 2.5,
         "max_weight_kg": 80.0,
-        "current_status": "AVAILABLE"
+        "current_status": "AVAILABLE",
+        "zone": "shoulders"
       },
       {
         "id": "mach_tricep_pushdown_01",
@@ -97,7 +136,8 @@
         "weight_type": "pin_stack",
         "stack_increment_kg": 2.5,
         "max_weight_kg": 60.0,
-        "current_status": "AVAILABLE"
+        "current_status": "AVAILABLE",
+        "zone": "cable"
       },
       {
         "id": "mach_bicep_curl_01",
@@ -105,14 +145,16 @@
         "weight_type": "pin_stack",
         "stack_increment_kg": 2.5,
         "max_weight_kg": 60.0,
-        "current_status": "AVAILABLE"
+        "current_status": "AVAILABLE",
+        "zone": "arms"
       },
       {
         "id": "treadmill_01",
         "name": "Treadmill Station 1",
-        "weight_type": "pin_stack",
+        "weight_type": "bodyweight",
         "base_weight_kg": 0.0,
-        "current_status": "AVAILABLE"
+        "current_status": "AVAILABLE",
+        "zone": "cardio"
       }
     ]
   }

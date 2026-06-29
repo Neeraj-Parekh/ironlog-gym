@@ -26,8 +26,13 @@ import {
   ChevronRight,
   Settings as SettingsIcon,
   User,
+  Palette,
+  Download,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ThemeControls } from "@/components/theme/theme-controls";
+import { useState } from "react";
+import { ExportDialog } from "@/components/export/export-dialog";
 
 const SUB_PAGES: Array<{
   view: "ai_gateway" | "analytics" | "biometrics";
@@ -72,6 +77,7 @@ const NOTIFICATION_OPTIONS: Array<{
 
 export function SettingsHub() {
   const setView = useAppStore((s) => s.setView);
+  const [showExport, setShowExport] = useState(false);
   const {
     hapticsEnabled,
     restNotificationStyle,
@@ -133,7 +139,41 @@ export function SettingsHub() {
               </button>
             );
           })}
+          {/* Export tool */}
+          <button
+            onClick={() => setShowExport(true)}
+            className="w-full flex items-center gap-3 rounded-xl border bg-card p-3 text-left hover:bg-accent/50 transition-colors"
+          >
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg text-amber-500 bg-amber-500/10">
+              <Download className="h-5 w-5" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-medium text-sm">Export Data</p>
+              <p className="text-xs text-muted-foreground line-clamp-1">
+                Session Markdown (for AI) or routine JSON backup
+              </p>
+            </div>
+            <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+          </button>
         </div>
+      </div>
+
+      <ExportDialog open={showExport} onOpenChange={setShowExport} />
+
+      {/* Appearance / Theme */}
+      <div>
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2 px-1">
+          Appearance
+        </h3>
+        <Card>
+          <CardContent className="pt-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Palette className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-medium">Theme & Colors</span>
+            </div>
+            <ThemeControls />
+          </CardContent>
+        </Card>
       </div>
 
       {/* Workout preferences */}

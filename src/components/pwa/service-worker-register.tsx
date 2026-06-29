@@ -4,13 +4,13 @@ import { useEffect } from "react";
 /**
  * Registers the service worker for PWA offline support.
  * Mounted in the root layout, client-only.
+ * Enabled in both dev and prod for testing.
  */
 export function ServiceWorkerRegister() {
   useEffect(() => {
     if (
       typeof window !== "undefined" &&
-      "serviceWorker" in navigator &&
-      process.env.NODE_ENV === "production"
+      "serviceWorker" in navigator
     ) {
       navigator.serviceWorker
         .register("/sw.js")
