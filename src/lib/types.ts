@@ -239,3 +239,54 @@ export interface RoutineTemplate {
   days: number;
   template_data: unknown; // serialized routine structure
 }
+
+// ---- Session Soreness (DOMS — next-day tracking) ----
+export interface MuscleSorenessEntry {
+  muscle: string;
+  level: 1 | 2 | 3 | 4 | 5; // 1=none, 5=severe
+}
+
+export interface SessionSoreness {
+  id: string;
+  session_id: string; // FK -> Session.id
+  logged_at: string; // ISO timestamp
+  overall_level: 1 | 2 | 3 | 4 | 5;
+  muscle_entries: MuscleSorenessEntry[];
+  hours_after_session: number; // 24-72h window
+  notes?: string;
+}
+
+// ---- Pre-Workout Context ----
+export interface PreWorkoutContext {
+  id: string;
+  session_id: string; // FK -> Session.id
+  logged_at: string;
+  // Auto-captured:
+  time_of_day: string; // HH:MM
+  hours_since_waking: number;
+  // User input:
+  hours_since_last_meal: number;
+  caffeine_mg: number;
+  stress_level: 1 | 2 | 3 | 4 | 5;
+  hydration_ml: number; // pulled from water tracker at session start
+  notes?: string;
+}
+
+// ---- Vitality Log (testosterone proxy) ----
+// Composite score from self-reported markers that correlate with T
+export interface VitalityLog {
+  id: string;
+  logged_at: string; // morning timestamp
+  date: string; // YYYY-MM-DD
+  // Core markers (0-3 or 1-5 per the formula):
+  morning_erection: 0 | 1 | 2 | 3; // 0=none, 3=strong
+  libido: 1 | 2 | 3 | 4 | 5;
+  drive: 1 | 2 | 3 | 4 | 5; // aggression/competitive drive
+  confidence: 1 | 2 | 3 | 4 | 5;
+  energy: 1 | 2 | 3 | 4 | 5;
+  muscle_fullness: 1 | 2 | 3 | 4 | 5;
+  sleep_quality: 1 | 2 | 3 | 4 | 5;
+  // Computed:
+  computed_score: number; // 0-100
+  notes?: string;
+}

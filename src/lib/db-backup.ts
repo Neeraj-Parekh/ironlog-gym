@@ -18,6 +18,9 @@ import type {
   Milestone,
   StreakRecord,
   RoutineTemplate,
+  SessionSoreness,
+  PreWorkoutContext,
+  VitalityLog,
 } from "./types";
 
 export interface FullBackup {
@@ -38,11 +41,15 @@ export interface FullBackup {
     milestones: Milestone[];
     streak: StreakRecord[];
     templates: RoutineTemplate[];
+    session_soreness: SessionSoreness[];
+    pre_workout_context: PreWorkoutContext[];
+    vitality_log: VitalityLog[];
   };
   stats: {
     total_sessions: number;
     total_sets: number;
     total_exercises: number;
+    total_vitality_logs: number;
   };
 }
 
@@ -62,6 +69,9 @@ export async function createFullBackup(): Promise<FullBackup> {
     milestones,
     streak,
     templates,
+    session_soreness,
+    pre_workout_context,
+    vitality_log,
   ] = await Promise.all([
     db.exercises.toArray(),
     db.equipment.toArray(),
@@ -76,10 +86,13 @@ export async function createFullBackup(): Promise<FullBackup> {
     db.milestones.toArray(),
     db.streak.toArray(),
     db.templates.toArray(),
+    db.session_soreness.toArray(),
+    db.pre_workout_context.toArray(),
+    db.vitality_log.toArray(),
   ]);
 
   return {
-    backup_version: "1.0",
+    backup_version: "1.1",
     backed_up_at: new Date().toISOString(),
     app_version: "1.0.0",
     tables: {
@@ -96,11 +109,15 @@ export async function createFullBackup(): Promise<FullBackup> {
       milestones,
       streak,
       templates,
+      session_soreness,
+      pre_workout_context,
+      vitality_log,
     },
     stats: {
       total_sessions: sessions.length,
       total_sets: session_sets.length,
       total_exercises: exercises.length,
+      total_vitality_logs: vitality_log.length,
     },
   };
 }
@@ -124,9 +141,11 @@ export async function restoreFullBackup(backup: FullBackup): Promise<void> {
       db.milestones,
       db.streak,
       db.templates,
+      db.session_soreness,
+      db.pre_workout_context,
+      db.vitality_log,
     ],
     async () => {
-      // Clear all tables
       await Promise.all([
         db.exercises.clear(),
         db.equipment.clear(),
@@ -141,9 +160,11 @@ export async function restoreFullBackup(backup: FullBackup): Promise<void> {
         db.milestones.clear(),
         db.streak.clear(),
         db.templates.clear(),
+        db.session_soreness.clear(),
+        db.pre_workout_context.clear(),
+        db.vitality_log.clear(),
       ]);
 
-      // Restore all tables (only if they have data)
       const t = backup.tables;
       if (t.exercises?.length) await db.exercises.bulkPut(t.exercises);
       if (t.equipment?.length) await db.equipment.bulkPut(t.equipment);
@@ -158,6 +179,9 @@ export async function restoreFullBackup(backup: FullBackup): Promise<void> {
       if (t.milestones?.length) await db.milestones.bulkPut(t.milestones);
       if (t.streak?.length) await db.streak.bulkPut(t.streak);
       if (t.templates?.length) await db.templates.bulkPut(t.templates);
+      if (t.session_soreness?.length) await db.session_soreness.bulkPut(t.session_soreness);
+      if (t.pre_workout_context?.length) await db.pre_workout_context.bulkPut(t.pre_workout_context);
+      if (t.vitality_log?.length) await db.vitality_log.bulkPut(t.vitality_log);
     }
   );
 }

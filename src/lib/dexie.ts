@@ -17,6 +17,9 @@ import type {
   Milestone,
   StreakRecord,
   RoutineTemplate,
+  SessionSoreness,
+  PreWorkoutContext,
+  VitalityLog,
 } from "./types";
 
 export class GymDB extends Dexie {
@@ -33,6 +36,9 @@ export class GymDB extends Dexie {
   milestones!: Table<Milestone, string>;
   streak!: Table<StreakRecord, string>;
   templates!: Table<RoutineTemplate, string>;
+  session_soreness!: Table<SessionSoreness, string>;
+  pre_workout_context!: Table<PreWorkoutContext, string>;
+  vitality_log!: Table<VitalityLog, string>;
 
   constructor() {
     super("gym_tracker_db");
@@ -48,7 +54,6 @@ export class GymDB extends Dexie {
       biometrics: "&id, tier, metric, logged_at",
       water_intake: "&id, logged_at",
     });
-    // v2: add PR, milestones, streak, templates tables
     this.version(2).stores({
       exercises: "&id, name, exercise_type, equipment_id, target_muscle",
       equipment: "&id, name, kind",
@@ -64,6 +69,26 @@ export class GymDB extends Dexie {
       milestones: "&id, type, achieved_at",
       streak: "&id",
       templates: "&id, name, category, difficulty",
+    });
+    // v3: add soreness, pre-workout context, vitality tables
+    this.version(3).stores({
+      exercises: "&id, name, exercise_type, equipment_id, target_muscle",
+      equipment: "&id, name, kind",
+      routine_versions: "&id, effective_week, is_active, created_at",
+      routine_nodes:
+        "&id, version_id, day_of_week, block_type, sequence_order, exercise_id",
+      day_labels: "&id, version_id, day_of_week, is_active",
+      sessions: "&id, date, version_id, status, started_at",
+      session_sets: "&id, session_id, node_id, exercise_id, logged_at",
+      biometrics: "&id, tier, metric, logged_at",
+      water_intake: "&id, logged_at",
+      personal_records: "&id, exercise_id, achieved_at",
+      milestones: "&id, type, achieved_at",
+      streak: "&id",
+      templates: "&id, name, category, difficulty",
+      session_soreness: "&id, session_id, logged_at",
+      pre_workout_context: "&id, session_id",
+      vitality_log: "&id, date, logged_at",
     });
   }
 }
