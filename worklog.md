@@ -306,3 +306,61 @@ Stage Summary:
 - Session completion: Energy/Difficulty/Cardio inputs added
 - Browser-verified: login prompt → password "nero" → app loads with Physc Gym 6-day split → log sheet export generates correct format
 - Lint: 0 errors, 0 warnings
+
+---
+Task ID: seed-45-exercises
+Agent: general-purpose
+Task: Rewrite src/lib/seed.ts to include ALL 45 exercises from the Physc Gym master list + full warm-up/stretching routine
+
+Work Log:
+- Read worklog.md, current src/lib/seed.ts (788 lines, 39 exercises), src/lib/types.ts, src/lib/tags.ts (TAG_CONFIG), src/data/inventory.json (25 machines/barbells/dumbbells/plates)
+- Verified only `src/lib/seed.ts` references the old exercise IDs (ex_squat, ex_ez_curl, ex_bench_press, etc.) — no other file depends on them, so the ID rename is safe
+- Verified ESLint config: `no-unused-vars` and `@typescript-eslint/no-unused-vars` are off, so removing the unused `DAY_NAMES` constant is for cleanliness, not for lint compliance
+- Rewrote `src/lib/seed.ts` (now 832 lines):
+  - Updated header comment block to describe 45 exercises across 8 categories + new fixed-block names/durations
+  - Removed unused `DAY_NAMES` constant (other files have their own copies)
+  - Kept all existing helpers unchanged: `makeVisualTag`, `uid`, `getISOWeek`, `equipmentSourceFor` (comment expanded to list all cardio prefixes), `buildEquipment`
+  - Rewrote `EXERCISE_DEFS` array with exactly 45 entries (was 39), grouped by muscle category:
+    - Legs (8): ex_squats, ex_lunges, ex_step_up, ex_leg_press, ex_leg_curl, ex_straight_leg_calf_raises, ex_seated_calf_raises, ex_leg_extension
+    - Back (10): ex_seated_rows, ex_bent_over_rows, ex_one_arm_rows, ex_lat_pulldown_broad, ex_lat_pulldown_narrow, ex_db_shrugs, ex_deadlift, ex_stiff_leg_deadlift, ex_tbar_row, ex_back_extension
+    - Biceps (4): ex_biceps_curl, ex_incline_db_curl, ex_reverse_cable_curl, ex_preacher_curl
+    - Chest (5): ex_decline_chest_press, ex_incline_chest_press, ex_pec_fly, ex_db_pullover, ex_flat_chest_press
+    - Shoulders (5): ex_overhead_press, ex_lateral_raises, ex_front_raises, ex_upright_row, ex_rear_delt_fly
+    - Triceps (6): ex_tricep_pushdown, ex_tricep_dip_machine, ex_tricep_machine, ex_tricep_kickback, ex_french_curl, ex_close_grip_pushups
+    - Cardio (1): ex_cardio_general
+    - Core (6): ex_situps, ex_crunches, ex_twisting_crunches, ex_leg_flexion, ex_plank, ex_reverse_crunches
+  - Each exercise carries: id, name, target_muscle, exercise_type, equipment_id, ordered fallback_ids — all 45 IDs match the task spec exactly (verified via `rg -o 'id: "ex_[a-z_]+"' | sort -u | wc -l` → 45)
+  - Sensible fallback chains wired throughout: e.g. Squats↔Leg Press, Lunges↔Step Up, broad/narrow pulldowns swap, flat/incline/decline chest press cross-link, Triceps Pushdown↔Triceps Machine↔French Curl, all 6 core exercises cross-link where movement patterns overlap
+  - Equipment picks for "DB/BB" or "DB/BB/Machine" exercises: barbell primary for chest/back presses, dumbbell for DB Shrugs, EZ bar for Biceps Curl + French Curl, machine for Upright Row + Back Extension
+  - New muscle values added: "calves" (calf raises), "cardio" (general cardio entry), "core" (the 6 ab exercises)
+  - Updated `ROUTINE_DAYS` to match the exact spec:
+    - Mon=Legs (6: Squats, Lunges, Leg Press, Seated Calf Raise, Leg Curl, Leg Extension)
+    - Tue=Shoulders (4: Overhead Press, Lateral Raises, Front Raises, Rear Delt Fly)
+    - Wed=Back (5: Lat Pulldown Broad, Lat Pulldown Narrow, Seated Rows, T-Bar Row, DB Shrugs)
+    - Thu=Biceps (4: Biceps Curl, Incline DB Curl, Preacher Curl, Reverse Cable Curl)
+    - Fri=Chest (5: Flat Press, Incline Press, Decline Press, Pec Fly, DB Pullover)
+    - Sat=Triceps + Core (6: Triceps Pushdown, Triceps Dip Machine, French Curl, Triceps Kickback, Plank, Crunches)
+    - Sun=Rest Day (no nodes, just label)
+  - Updated fixed blocks in `buildRoutineNodes()`:
+    - Pre-workout: renamed to "Joint Mobility & Dynamic Warm-up", duration bumped from 8 → 10 min (stretching)
+    - Post-workout: renamed to "Cardio + Static Stretching" (was "Steady State Cardio"), duration bumped from 22 → 25 min (cardio), dropped the previous `intensity_metrics` field since the combined block now mixes cardio + stretching
+  - Kept `buildBiometrics()` returning the same 3 baseline entries (Tier 2 height 168cm, Tier 1 body_weight 59.3kg, Tier 2 body_fat_pct 14%)
+  - Kept `seedDatabase()` signature + routine version label "Physc Gym 6-Day Split" + transaction includes `db.biometrics.bulkPut()`
+  - Kept `resetDatabase()` signature + clearing of all 9 tables (exercises/equipment/routine_versions/routine_nodes/day_labels/sessions/session_sets/biometrics/water_intake) + re-seed via `seedDatabase()`
+- Verification:
+  - `npx tsc --noEmit | grep "src/lib/seed.ts"` → no errors specific to seed.ts (other pre-existing errors in dexie.ts/use-wake-lock/etc. are unrelated)
+  - `npx eslint src/lib/seed.ts` → exit 0, zero output (0 errors, 0 warnings)
+  - `rg -c 'id: "ex_'` → 45 (exact match with spec)
+  - Dev server still running healthy (curl localhost:3000 → 200)
+
+Stage Summary:
+- `src/lib/seed.ts` fully rewritten — 832 lines, no TODOs, no placeholders
+- Catalog expanded from 39 → 45 exercises (the complete Physc Gym master list)
+- Routine: 6 training days × (1 pre + N exercises + 1 post) + 1 Sunday rest-day label
+- 30 routine exercise nodes seeded across the week (Legs 6, Shoulders 4, Back 5, Biceps 4, Chest 5, Triceps+Core 6) — the other 15 catalog entries serve as fallbacks or future manual-adds
+- Fixed blocks updated: 10-min "Joint Mobility & Dynamic Warm-up" (stretching, pre) + 25-min "Cardio + Static Stretching" (cardio, post)
+- Biometrics: 3 baseline entries seeded (Tier 2 height 168cm, Tier 1 body_weight 59.3kg, Tier 2 body_fat_pct 14%)
+- Function signatures preserved: `seedDatabase(): Promise<void>` and `resetDatabase(): Promise<void>` — no consumer changes needed
+- TypeScript: zero errors on src/lib/seed.ts
+- ESLint: clean (0 errors, 0 warnings)
+- All 45 exercise IDs verified to match the task spec exactly

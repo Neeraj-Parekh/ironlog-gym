@@ -155,6 +155,113 @@
         "base_weight_kg": 0.0,
         "current_status": "AVAILABLE",
         "zone": "cardio"
+      },
+      {
+        "id": "treadmill_02",
+        "name": "Treadmill Station 2",
+        "weight_type": "bodyweight",
+        "base_weight_kg": 0.0,
+        "current_status": "AVAILABLE",
+        "zone": "cardio"
+      },
+      {
+        "id": "elliptical_01",
+        "name": "Elliptical Trainer",
+        "weight_type": "bodyweight",
+        "base_weight_kg": 0.0,
+        "current_status": "AVAILABLE",
+        "zone": "cardio"
+      },
+      {
+        "id": "exercise_bike_01",
+        "name": "Exercise Bike",
+        "weight_type": "bodyweight",
+        "base_weight_kg": 0.0,
+        "current_status": "AVAILABLE",
+        "zone": "cardio"
+      },
+      {
+        "id": "stairmaster_01",
+        "name": "Stairmaster",
+        "weight_type": "bodyweight",
+        "base_weight_kg": 0.0,
+        "current_status": "AVAILABLE",
+        "zone": "cardio"
+      },
+      {
+        "id": "mach_calf_raise_01",
+        "name": "Seated Calf Raise Machine",
+        "weight_type": "plate_loaded",
+        "base_weight_kg": 0.0,
+        "current_status": "AVAILABLE",
+        "zone": "legs"
+      },
+      {
+        "id": "mach_tricep_dip_01",
+        "name": "Triceps Dip Machine",
+        "weight_type": "pin_stack",
+        "stack_increment_kg": 2.5,
+        "max_weight_kg": 60.0,
+        "current_status": "AVAILABLE",
+        "zone": "arms"
+      },
+      {
+        "id": "mach_tricep_01",
+        "name": "Triceps Machine",
+        "weight_type": "pin_stack",
+        "stack_increment_kg": 2.5,
+        "max_weight_kg": 60.0,
+        "current_status": "AVAILABLE",
+        "zone": "arms"
+      },
+      {
+        "id": "mach_upright_row_01",
+        "name": "Upright Row Cable Station",
+        "weight_type": "pin_stack",
+        "stack_increment_kg": 2.5,
+        "max_weight_kg": 60.0,
+        "current_status": "AVAILABLE",
+        "zone": "cable"
+      },
+      {
+        "id": "mach_back_extension_01",
+        "name": "Back Extension Bench",
+        "weight_type": "bodyweight",
+        "base_weight_kg": 0.0,
+        "current_status": "AVAILABLE",
+        "zone": "back"
+      },
+      {
+        "id": "mach_tbar_01",
+        "name": "T-Bar Row Station",
+        "weight_type": "plate_loaded",
+        "base_weight_kg": 0.0,
+        "current_status": "AVAILABLE",
+        "zone": "back"
+      },
+      {
+        "id": "mach_incline_bench_01",
+        "name": "Incline Bench",
+        "weight_type": "bodyweight",
+        "base_weight_kg": 0.0,
+        "current_status": "AVAILABLE",
+        "zone": "chest"
+      },
+      {
+        "id": "mach_decline_bench_01",
+        "name": "Decline Bench",
+        "weight_type": "bodyweight",
+        "base_weight_kg": 0.0,
+        "current_status": "AVAILABLE",
+        "zone": "chest"
+      },
+      {
+        "id": "mach_flat_bench_01",
+        "name": "Flat Bench",
+        "weight_type": "bodyweight",
+        "base_weight_kg": 0.0,
+        "current_status": "AVAILABLE",
+        "zone": "chest"
       }
     ]
   }

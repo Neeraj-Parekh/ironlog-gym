@@ -1,13 +1,16 @@
 // ============================================================
 // Database seeder — populates Dexie on first run
 // Seeds:
-//   • Equipment (built from inventory.json — unchanged)
-//   • Full Physc Gym exercise catalog (39 exercises across 7 muscles)
+//   • Equipment (built from inventory.json)
+//   • Full Physc Gym exercise catalog (45 exercises across
+//     8 categories: legs, calves, back, biceps, chest,
+//     shoulders, triceps, cardio, core)
 //   • 6-day training split:
 //       Mon=Legs, Tue=Shoulders, Wed=Back, Thu=Biceps,
-//       Fri=Chest, Sat=Triceps, Sun=Rest Day
-//   • Fixed daily blocks: 8-min dynamic warm-up (pre) + 22-min
-//     steady-state cardio (post) on every training day
+//       Fri=Chest, Sat=Triceps+Core, Sun=Rest Day
+//   • Fixed daily blocks on every training day:
+//       Pre:  "Joint Mobility & Dynamic Warm-up" (10 min, stretching)
+//       Post: "Cardio + Static Stretching" (25 min, cardio)
 //   • User baseline biometrics (height 168cm / weight 59.3kg / 14% BF)
 // ============================================================
 import { getDB } from "@/lib/dexie";
@@ -26,16 +29,6 @@ import type {
   RoutineVersion,
 } from "@/lib/types";
 import inventoryData from "@/data/inventory.json";
-
-const DAY_NAMES = [
-  "Sunday",
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-];
 
 // ---- Helpers ----
 function makeVisualTag(type: ExerciseType) {
@@ -64,7 +57,7 @@ function getISOWeek(): string {
 // Resolve equipment_source from an equipment id.
 // - bar_*      → barbell
 // - dumbbell_* → dumbbell
-// - mach_* / treadmill_* → machine
+// - mach_* / treadmill_* / elliptical_* / exercise_bike_* / stairmaster_* → machine
 // - none_bodyweight → bodyweight
 function equipmentSourceFor(equipmentId: string): {
   type: EquipmentKind;
@@ -77,7 +70,7 @@ function equipmentSourceFor(equipmentId: string): {
   if (equipmentId.startsWith("dumbbell_")) {
     return { type: "dumbbell", preferred_id: equipmentId };
   }
-  // mach_* and treadmill_*
+  // mach_*, treadmill_*, elliptical_*, exercise_bike_*, stairmaster_*
   return { type: "machine", preferred_id: equipmentId };
 }
 
@@ -133,7 +126,7 @@ function buildEquipment(): Equipment[] {
 }
 
 // ============================================================
-// Exercise catalog — full Physc Gym split
+// Exercise catalog — full Physc Gym master list (45 entries)
 // Every exercise has a primary equipment id and an ordered
 // fallback list (used by the fallback resolver when the primary
 // station is busy). Variants (e.g. broad/narrow grip pulldown)
@@ -149,54 +142,62 @@ type ExerciseDef = {
 };
 
 const EXERCISE_DEFS: ExerciseDef[] = [
-  // ---- Legs (Monday) ----
+  // ---- Legs (8) ----
   {
-    id: "ex_squat",
-    name: "Barbell Back Squat",
+    id: "ex_squats",
+    name: "Squats",
     muscle: "legs",
     type: "non-machine",
     equipment: "bar_std_20",
-    fallbacks: ["ex_leg_press", "ex_hack_squat"],
+    fallbacks: ["ex_leg_press"],
   },
   {
     id: "ex_lunges",
-    name: "Dumbbell Lunges",
+    name: "Lunges",
     muscle: "legs",
     type: "non-machine",
     equipment: "dumbbell_set_01",
-    fallbacks: ["ex_squat"],
+    fallbacks: ["ex_step_up"],
+  },
+  {
+    id: "ex_step_up",
+    name: "Step Up",
+    muscle: "legs",
+    type: "non-machine",
+    equipment: "dumbbell_set_01",
+    fallbacks: ["ex_lunges"],
   },
   {
     id: "ex_leg_press",
-    name: "Leg Press 45°",
+    name: "Leg Press",
     muscle: "legs",
     type: "machine",
     equipment: "mach_leg_press_01",
-    fallbacks: ["ex_hack_squat", "ex_squat"],
-  },
-  {
-    id: "ex_hack_squat",
-    name: "Hack Squat",
-    muscle: "legs",
-    type: "machine",
-    equipment: "mach_hack_squat_01",
-    fallbacks: ["ex_leg_press", "ex_squat"],
-  },
-  {
-    id: "ex_seated_calf_raise",
-    name: "Seated Calf Raise",
-    muscle: "calves",
-    type: "non-machine",
-    equipment: "dumbbell_set_01",
-    fallbacks: [],
+    fallbacks: ["ex_squats"],
   },
   {
     id: "ex_leg_curl",
-    name: "Seated Leg Curl",
+    name: "Leg Curl",
     muscle: "legs",
     type: "machine",
     equipment: "mach_leg_curl_01",
-    fallbacks: [],
+    fallbacks: ["ex_stiff_leg_deadlift"],
+  },
+  {
+    id: "ex_straight_leg_calf_raises",
+    name: "Straight Leg Calf Raises",
+    muscle: "calves",
+    type: "non-machine",
+    equipment: "dumbbell_set_01",
+    fallbacks: ["ex_seated_calf_raises"],
+  },
+  {
+    id: "ex_seated_calf_raises",
+    name: "Seated Calf Raises",
+    muscle: "calves",
+    type: "machine",
+    equipment: "mach_calf_raise_01",
+    fallbacks: ["ex_straight_leg_calf_raises"],
   },
   {
     id: "ex_leg_extension",
@@ -204,68 +205,34 @@ const EXERCISE_DEFS: ExerciseDef[] = [
     muscle: "legs",
     type: "machine",
     equipment: "mach_leg_extension_01",
-    fallbacks: [],
+    fallbacks: ["ex_squats"],
   },
 
-  // ---- Shoulders (Tuesday) ----
+  // ---- Back (10) ----
   {
-    id: "ex_overhead_press",
-    name: "Barbell Overhead Press",
-    muscle: "shoulders",
+    id: "ex_seated_rows",
+    name: "Seated Rows",
+    muscle: "back",
     type: "non-machine",
     equipment: "bar_std_20",
-    fallbacks: ["ex_shoulder_press_machine", "ex_db_shoulder_press"],
+    fallbacks: ["ex_tbar_row", "ex_one_arm_rows"],
   },
   {
-    id: "ex_shoulder_press_machine",
-    name: "Shoulder Press Machine",
-    muscle: "shoulders",
-    type: "machine",
-    equipment: "mach_shoulder_press_01",
-    fallbacks: ["ex_overhead_press", "ex_db_shoulder_press"],
+    id: "ex_bent_over_rows",
+    name: "Bent Over Rows",
+    muscle: "back",
+    type: "non-machine",
+    equipment: "bar_std_20",
+    fallbacks: ["ex_tbar_row", "ex_seated_rows"],
   },
   {
-    id: "ex_db_shoulder_press",
-    name: "Dumbbell Shoulder Press",
-    muscle: "shoulders",
+    id: "ex_one_arm_rows",
+    name: "One Arm Rows",
+    muscle: "back",
     type: "non-machine",
     equipment: "dumbbell_set_01",
-    fallbacks: ["ex_overhead_press", "ex_shoulder_press_machine"],
+    fallbacks: ["ex_bent_over_rows", "ex_seated_rows"],
   },
-  {
-    id: "ex_db_lateral_raise",
-    name: "Dumbbell Lateral Raise",
-    muscle: "shoulders",
-    type: "non-machine",
-    equipment: "dumbbell_set_01",
-    fallbacks: [],
-  },
-  {
-    id: "ex_db_front_raise",
-    name: "Dumbbell Front Raise",
-    muscle: "shoulders",
-    type: "non-machine",
-    equipment: "dumbbell_set_01",
-    fallbacks: [],
-  },
-  {
-    id: "ex_rear_delt_fly",
-    name: "Rear Delt Cable Fly",
-    muscle: "shoulders",
-    type: "machine",
-    equipment: "mach_cable_crossover_01",
-    fallbacks: ["ex_db_rear_delt_fly"],
-  },
-  {
-    id: "ex_db_rear_delt_fly",
-    name: "Dumbbell Rear Delt Fly",
-    muscle: "shoulders",
-    type: "non-machine",
-    equipment: "dumbbell_set_01",
-    fallbacks: ["ex_rear_delt_fly"],
-  },
-
-  // ---- Back (Wednesday) ----
   {
     id: "ex_lat_pulldown_broad",
     name: "Lat Pulldown (Broad Grip)",
@@ -283,62 +250,54 @@ const EXERCISE_DEFS: ExerciseDef[] = [
     fallbacks: ["ex_lat_pulldown_broad"],
   },
   {
-    id: "ex_seated_row",
-    name: "Cable Seated Row",
-    muscle: "back",
-    type: "machine",
-    equipment: "mach_cable_crossover_01",
-    fallbacks: ["ex_barbell_row"],
-  },
-  {
-    id: "ex_tbar_row",
-    name: "T-Bar Row",
-    muscle: "back",
-    type: "non-machine",
-    equipment: "bar_std_20",
-    fallbacks: ["ex_barbell_row", "ex_seated_row"],
-  },
-  {
-    id: "ex_barbell_row",
-    name: "Barbell Bent-Over Row",
-    muscle: "back",
-    type: "non-machine",
-    equipment: "bar_std_20",
-    fallbacks: ["ex_seated_row", "ex_tbar_row"],
-  },
-  {
     id: "ex_db_shrugs",
     name: "Dumbbell Shrugs",
     muscle: "back",
     type: "non-machine",
     equipment: "dumbbell_set_01",
-    fallbacks: ["ex_barbell_shrug"],
+    fallbacks: [],
   },
   {
-    id: "ex_barbell_shrug",
-    name: "Barbell Shrug",
+    id: "ex_deadlift",
+    name: "Deadlift",
     muscle: "back",
     type: "non-machine",
     equipment: "bar_std_20",
-    fallbacks: ["ex_db_shrugs"],
+    fallbacks: ["ex_stiff_leg_deadlift"],
+  },
+  {
+    id: "ex_stiff_leg_deadlift",
+    name: "Stiff Leg Deadlift",
+    muscle: "back",
+    type: "non-machine",
+    equipment: "bar_std_20",
+    fallbacks: ["ex_deadlift", "ex_leg_curl"],
+  },
+  {
+    id: "ex_tbar_row",
+    name: "T-Bar Row",
+    muscle: "back",
+    type: "machine",
+    equipment: "mach_tbar_01",
+    fallbacks: ["ex_bent_over_rows", "ex_seated_rows"],
+  },
+  {
+    id: "ex_back_extension",
+    name: "Superman / Back Extension",
+    muscle: "back",
+    type: "non-machine",
+    equipment: "mach_back_extension_01",
+    fallbacks: [],
   },
 
-  // ---- Biceps (Thursday) ----
+  // ---- Biceps (4) ----
   {
-    id: "ex_ez_curl",
-    name: "EZ Bar Biceps Curl",
+    id: "ex_biceps_curl",
+    name: "Biceps Curl",
     muscle: "biceps",
     type: "non-machine",
     equipment: "bar_ez_10",
-    fallbacks: ["ex_db_curl"],
-  },
-  {
-    id: "ex_db_curl",
-    name: "Dumbbell Biceps Curl",
-    muscle: "biceps",
-    type: "non-machine",
-    equipment: "dumbbell_set_01",
-    fallbacks: ["ex_ez_curl"],
+    fallbacks: ["ex_incline_db_curl", "ex_preacher_curl"],
   },
   {
     id: "ex_incline_db_curl",
@@ -346,15 +305,7 @@ const EXERCISE_DEFS: ExerciseDef[] = [
     muscle: "biceps",
     type: "non-machine",
     equipment: "dumbbell_set_01",
-    fallbacks: ["ex_db_curl"],
-  },
-  {
-    id: "ex_preacher_curl",
-    name: "Preacher Curl Machine",
-    muscle: "biceps",
-    type: "machine",
-    equipment: "mach_bicep_curl_01",
-    fallbacks: ["ex_ez_curl", "ex_db_curl"],
+    fallbacks: ["ex_biceps_curl"],
   },
   {
     id: "ex_reverse_cable_curl",
@@ -362,65 +313,41 @@ const EXERCISE_DEFS: ExerciseDef[] = [
     muscle: "biceps",
     type: "machine",
     equipment: "mach_cable_crossover_01",
-    fallbacks: ["ex_ez_curl"],
+    fallbacks: ["ex_biceps_curl"],
+  },
+  {
+    id: "ex_preacher_curl",
+    name: "Preacher Curl",
+    muscle: "biceps",
+    type: "machine",
+    equipment: "mach_bicep_curl_01",
+    fallbacks: ["ex_biceps_curl"],
   },
 
-  // ---- Chest (Friday) ----
+  // ---- Chest (5) ----
   {
-    id: "ex_bench_press",
-    name: "Barbell Bench Press",
+    id: "ex_decline_chest_press",
+    name: "Decline Chest Press",
     muscle: "chest",
     type: "non-machine",
     equipment: "bar_std_20",
-    fallbacks: ["ex_chest_press_machine", "ex_db_incline_press"],
+    fallbacks: ["ex_flat_chest_press"],
   },
   {
-    id: "ex_db_incline_press",
-    name: "Incline Dumbbell Press",
-    muscle: "chest",
-    type: "non-machine",
-    equipment: "dumbbell_set_01",
-    fallbacks: ["ex_chest_press_machine", "ex_bench_press"],
-  },
-  {
-    id: "ex_decline_press",
-    name: "Decline Barbell Press",
+    id: "ex_incline_chest_press",
+    name: "Incline Chest Press",
     muscle: "chest",
     type: "non-machine",
     equipment: "bar_std_20",
-    fallbacks: ["ex_bench_press", "ex_chest_press_machine"],
+    fallbacks: ["ex_flat_chest_press"],
   },
   {
-    id: "ex_chest_press_machine",
-    name: "Seated Chest Press Machine",
-    muscle: "chest",
-    type: "machine",
-    equipment: "mach_chest_press_01",
-    fallbacks: ["ex_bench_press", "ex_db_incline_press"],
-  },
-  {
-    id: "ex_pec_deck_fly",
-    name: "Pec Deck Fly",
+    id: "ex_pec_fly",
+    name: "Pec Fly / Cable Crossover",
     muscle: "chest",
     type: "machine",
     equipment: "mach_pec_deck_01",
-    fallbacks: ["ex_cable_crossover", "ex_db_fly"],
-  },
-  {
-    id: "ex_cable_crossover",
-    name: "Cable Crossover",
-    muscle: "chest",
-    type: "machine",
-    equipment: "mach_cable_crossover_01",
-    fallbacks: ["ex_pec_deck_fly"],
-  },
-  {
-    id: "ex_db_fly",
-    name: "Dumbbell Fly",
-    muscle: "chest",
-    type: "non-machine",
-    equipment: "dumbbell_set_01",
-    fallbacks: ["ex_pec_deck_fly"],
+    fallbacks: ["ex_db_pullover"],
   },
   {
     id: "ex_db_pullover",
@@ -428,41 +355,83 @@ const EXERCISE_DEFS: ExerciseDef[] = [
     muscle: "chest",
     type: "non-machine",
     equipment: "dumbbell_set_01",
-    fallbacks: ["ex_cable_crossover"],
+    fallbacks: ["ex_pec_fly"],
+  },
+  {
+    id: "ex_flat_chest_press",
+    name: "Flat Chest Press",
+    muscle: "chest",
+    type: "non-machine",
+    equipment: "bar_std_20",
+    fallbacks: ["ex_incline_chest_press", "ex_decline_chest_press"],
   },
 
-  // ---- Triceps (Saturday) ----
+  // ---- Shoulders (5) ----
+  {
+    id: "ex_overhead_press",
+    name: "Overhead Press",
+    muscle: "shoulders",
+    type: "non-machine",
+    equipment: "bar_std_20",
+    fallbacks: ["ex_upright_row"],
+  },
+  {
+    id: "ex_lateral_raises",
+    name: "Lateral Raises",
+    muscle: "shoulders",
+    type: "non-machine",
+    equipment: "dumbbell_set_01",
+    fallbacks: ["ex_upright_row"],
+  },
+  {
+    id: "ex_front_raises",
+    name: "Front Raises",
+    muscle: "shoulders",
+    type: "non-machine",
+    equipment: "dumbbell_set_01",
+    fallbacks: ["ex_overhead_press"],
+  },
+  {
+    id: "ex_upright_row",
+    name: "Upright Row",
+    muscle: "shoulders",
+    type: "machine",
+    equipment: "mach_upright_row_01",
+    fallbacks: ["ex_lateral_raises"],
+  },
+  {
+    id: "ex_rear_delt_fly",
+    name: "Rear Delt Fly / Prone High Rows",
+    muscle: "shoulders",
+    type: "machine",
+    equipment: "mach_cable_crossover_01",
+    fallbacks: [],
+  },
+
+  // ---- Triceps (6) ----
   {
     id: "ex_tricep_pushdown",
-    name: "Cable Tricep Pushdown",
+    name: "Triceps Pushdown",
     muscle: "triceps",
     type: "machine",
     equipment: "mach_tricep_pushdown_01",
-    fallbacks: ["ex_cable_crossover"],
+    fallbacks: ["ex_tricep_machine", "ex_french_curl"],
   },
   {
     id: "ex_tricep_dip_machine",
     name: "Triceps Dip Machine",
     muscle: "triceps",
     type: "machine",
-    equipment: "mach_cable_crossover_01",
+    equipment: "mach_tricep_dip_01",
+    fallbacks: ["ex_tricep_pushdown", "ex_close_grip_pushups"],
+  },
+  {
+    id: "ex_tricep_machine",
+    name: "Triceps Machine",
+    muscle: "triceps",
+    type: "machine",
+    equipment: "mach_tricep_01",
     fallbacks: ["ex_tricep_pushdown"],
-  },
-  {
-    id: "ex_french_curl",
-    name: "French Curl (EZ Bar Skull Crusher)",
-    muscle: "triceps",
-    type: "non-machine",
-    equipment: "bar_ez_10",
-    fallbacks: ["ex_db_skullcrusher", "ex_tricep_pushdown"],
-  },
-  {
-    id: "ex_db_skullcrusher",
-    name: "Dumbbell Skull Crusher",
-    muscle: "triceps",
-    type: "non-machine",
-    equipment: "dumbbell_set_01",
-    fallbacks: ["ex_french_curl"],
   },
   {
     id: "ex_tricep_kickback",
@@ -470,7 +439,83 @@ const EXERCISE_DEFS: ExerciseDef[] = [
     muscle: "triceps",
     type: "non-machine",
     equipment: "dumbbell_set_01",
-    fallbacks: ["ex_cable_crossover"],
+    fallbacks: ["ex_french_curl"],
+  },
+  {
+    id: "ex_french_curl",
+    name: "French Curl / Skull Crusher",
+    muscle: "triceps",
+    type: "non-machine",
+    equipment: "bar_ez_10",
+    fallbacks: ["ex_tricep_pushdown", "ex_tricep_kickback"],
+  },
+  {
+    id: "ex_close_grip_pushups",
+    name: "Close Grip Push-ups",
+    muscle: "triceps",
+    type: "non-machine",
+    equipment: "none_bodyweight",
+    fallbacks: ["ex_tricep_dip_machine", "ex_french_curl"],
+  },
+
+  // ---- Cardio (1) ----
+  {
+    id: "ex_cardio_general",
+    name: "Cardio (Treadmill / Elliptical / Bike)",
+    muscle: "cardio",
+    type: "cardio",
+    equipment: "treadmill_01",
+    fallbacks: [],
+  },
+
+  // ---- Core / Abs (6) ----
+  {
+    id: "ex_situps",
+    name: "Sit-ups",
+    muscle: "core",
+    type: "non-machine",
+    equipment: "none_bodyweight",
+    fallbacks: ["ex_crunches"],
+  },
+  {
+    id: "ex_crunches",
+    name: "Crunches on Floor",
+    muscle: "core",
+    type: "non-machine",
+    equipment: "none_bodyweight",
+    fallbacks: ["ex_situps"],
+  },
+  {
+    id: "ex_twisting_crunches",
+    name: "Twisting Crunches on Floor",
+    muscle: "core",
+    type: "non-machine",
+    equipment: "none_bodyweight",
+    fallbacks: ["ex_crunches"],
+  },
+  {
+    id: "ex_leg_flexion",
+    name: "Leg Flexion / Leg Raises",
+    muscle: "core",
+    type: "non-machine",
+    equipment: "none_bodyweight",
+    fallbacks: ["ex_reverse_crunches"],
+  },
+  {
+    id: "ex_plank",
+    name: "Plank on Floor",
+    muscle: "core",
+    type: "non-machine",
+    equipment: "none_bodyweight",
+    fallbacks: [],
+  },
+  {
+    id: "ex_reverse_crunches",
+    name: "Reverse Crunches on Incline / Hanging",
+    muscle: "core",
+    type: "non-machine",
+    equipment: "none_bodyweight",
+    fallbacks: ["ex_crunches", "ex_leg_flexion"],
   },
 ];
 
@@ -513,9 +558,7 @@ const DEFAULT_SETS = 3;
 const DEFAULT_REPS = 10;
 const DEFAULT_REST = 120;
 
-function block(
-  exercise_id: string
-): ExerciseBlock {
+function block(exercise_id: string): ExerciseBlock {
   return {
     exercise_id,
     sets_count: DEFAULT_SETS,
@@ -529,10 +572,10 @@ const ROUTINE_DAYS: RoutineDay[] = [
     day_of_week: 1, // Monday
     label: "Legs",
     exercises: [
-      block("ex_squat"),
+      block("ex_squats"),
       block("ex_lunges"),
       block("ex_leg_press"),
-      block("ex_seated_calf_raise"),
+      block("ex_seated_calf_raises"),
       block("ex_leg_curl"),
       block("ex_leg_extension"),
     ],
@@ -542,8 +585,8 @@ const ROUTINE_DAYS: RoutineDay[] = [
     label: "Shoulders",
     exercises: [
       block("ex_overhead_press"),
-      block("ex_db_lateral_raise"),
-      block("ex_db_front_raise"),
+      block("ex_lateral_raises"),
+      block("ex_front_raises"),
       block("ex_rear_delt_fly"),
     ],
   },
@@ -553,7 +596,7 @@ const ROUTINE_DAYS: RoutineDay[] = [
     exercises: [
       block("ex_lat_pulldown_broad"),
       block("ex_lat_pulldown_narrow"),
-      block("ex_seated_row"),
+      block("ex_seated_rows"),
       block("ex_tbar_row"),
       block("ex_db_shrugs"),
     ],
@@ -562,7 +605,7 @@ const ROUTINE_DAYS: RoutineDay[] = [
     day_of_week: 4, // Thursday
     label: "Biceps",
     exercises: [
-      block("ex_ez_curl"),
+      block("ex_biceps_curl"),
       block("ex_incline_db_curl"),
       block("ex_preacher_curl"),
       block("ex_reverse_cable_curl"),
@@ -572,21 +615,23 @@ const ROUTINE_DAYS: RoutineDay[] = [
     day_of_week: 5, // Friday
     label: "Chest",
     exercises: [
-      block("ex_bench_press"),
-      block("ex_db_incline_press"),
-      block("ex_decline_press"),
-      block("ex_pec_deck_fly"),
+      block("ex_flat_chest_press"),
+      block("ex_incline_chest_press"),
+      block("ex_decline_chest_press"),
+      block("ex_pec_fly"),
       block("ex_db_pullover"),
     ],
   },
   {
     day_of_week: 6, // Saturday
-    label: "Triceps",
+    label: "Triceps + Core",
     exercises: [
       block("ex_tricep_pushdown"),
       block("ex_tricep_dip_machine"),
       block("ex_french_curl"),
       block("ex_tricep_kickback"),
+      block("ex_plank"),
+      block("ex_crunches"),
     ],
   },
 ];
@@ -622,17 +667,17 @@ function buildRoutineNodes(
       continue;
     }
 
-    // Fixed pre-workout: dynamic warm-up + joint mobility (8 min)
+    // Fixed pre-workout: joint mobility + dynamic warm-up (10 min)
     nodes.push({
       id: uid("node"),
       version_id: versionId,
       day_of_week: dow,
       block_type: "pre",
       sequence_order: seq++,
-      name: "Dynamic Warm-up & Joint Mobility",
+      name: "Joint Mobility & Dynamic Warm-up",
       exercise_type: "stretching",
       is_fixed: true,
-      duration_minutes: 8,
+      duration_minutes: 10,
     });
 
     // Exercise blocks
@@ -658,18 +703,17 @@ function buildRoutineNodes(
       });
     }
 
-    // Fixed post-workout: steady-state cardio (22 min)
+    // Fixed post-workout: cardio + static stretching (25 min)
     nodes.push({
       id: uid("node"),
       version_id: versionId,
       day_of_week: dow,
       block_type: "post",
       sequence_order: seq++,
-      name: "Steady State Cardio",
+      name: "Cardio + Static Stretching",
       exercise_type: "cardio",
       is_fixed: true,
-      duration_minutes: 22,
-      intensity_metrics: { incline_gradient: 4.0, speed_kmh: 6.0 },
+      duration_minutes: 25,
     });
   }
 
