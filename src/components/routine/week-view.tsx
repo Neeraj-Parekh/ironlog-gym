@@ -7,6 +7,7 @@ import {
 } from "@/hooks/use-routine";
 import { useWeeklyVolume, useStaleMuscles } from "@/hooks/use-weekly-volume";
 import { DayCell } from "./day-card";
+import { WeekCompletionGrid } from "@/components/analytics/visualizations";
 import type { DayOfWeek, RoutineNode } from "@/lib/types";
 import { CalendarDays, AlertCircle, Flame } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -67,6 +68,14 @@ export function WeekView() {
         <span>
           {version?.label} · Week {version?.effective_week}
         </span>
+      </div>
+
+      {/* Weekly completion grid */}
+      <div className="rounded-xl border bg-card p-3">
+        <p className="text-[10px] font-semibold uppercase text-muted-foreground mb-2">
+          This Week
+        </p>
+        <WeekCompletionGrid />
       </div>
 
       {/* Stale muscle alerts */}

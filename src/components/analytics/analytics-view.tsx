@@ -11,6 +11,13 @@ import {
 import { deleteSession } from "@/lib/session-helpers";
 import { useAppStore } from "@/lib/store/app-store";
 import { AchievementsPanel } from "./achievements-panel";
+import {
+  AnnualHeatmap,
+  HeroStats,
+  StackedWeeklyVolume,
+  TripleProgressRings,
+  MuscleDayHeatmap,
+} from "./visualizations";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CardSkeleton, EmptyState } from "@/components/shared/empty-state";
@@ -156,43 +163,33 @@ export function AnalyticsView() {
 
   return (
     <div className="px-4 py-4 pb-24 space-y-4">
-      {/* Summary cards */}
-      <div className="grid grid-cols-2 gap-3">
-        <StatCard
-          icon={Calendar}
-          label="Sessions"
-          value={String(totalSessions)}
-          accent="text-emerald-500 bg-emerald-500/10"
-        />
-        <StatCard
-          icon={Dumbbell}
-          label="Total Sets"
-          value={String(totalSets)}
-          accent="text-sky-500 bg-sky-500/10"
-        />
-        <StatCard
-          icon={TrendingUp}
-          label="Total Volume"
-          value={`${(totalVolume / 1000).toFixed(1)}k kg`}
-          accent="text-amber-500 bg-amber-500/10"
-        />
-        <StatCard
-          icon={Trophy}
-          label="Best 1RM"
-          value={`${allTimeBest1RM.toFixed(1)} kg`}
-          accent="text-rose-500 bg-rose-500/10"
-        />
-      </div>
+      {/* Hero stats — bold massive numbers */}
+      <HeroStats
+        sessions={totalSessions}
+        totalVolume={totalVolume}
+        streak={0}
+        best1RM={allTimeBest1RM}
+      />
+
+      {/* Triple progress rings */}
+      <TripleProgressRings />
+
+      {/* Annual training heatmap */}
+      <AnnualHeatmap year={new Date().getFullYear()} />
 
       <Tabs defaultValue="weekly">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="weekly">Weekly</TabsTrigger>
+          <TabsTrigger value="muscle">Muscle</TabsTrigger>
           <TabsTrigger value="exercise">Exercise</TabsTrigger>
           <TabsTrigger value="history">History</TabsTrigger>
         </TabsList>
 
         {/* Weekly aggregate */}
         <TabsContent value="weekly" className="space-y-3 mt-3">
+          {/* Stacked weekly volume by muscle group */}
+          <StackedWeeklyVolume />
+
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm flex items-center gap-2">
@@ -232,6 +229,11 @@ export function AnalyticsView() {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Muscle × Day heatmap */}
+        <TabsContent value="muscle" className="space-y-3 mt-3">
+          <MuscleDayHeatmap />
         </TabsContent>
 
         {/* Per-exercise trend */}
