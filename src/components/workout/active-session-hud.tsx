@@ -21,6 +21,7 @@ import { RestTimerPill } from "./rest-timer-pill";
 import { SetInputs } from "./set-inputs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Sheet,
   SheetContent,
@@ -101,6 +102,13 @@ export function ActiveSessionHUD() {
   const [rpe, setRpe] = useState<number | null>(null);
   const [notes, setNotes] = useState("");
   const [showRpeNotes, setShowRpeNotes] = useState(false);
+  // Session completion fields
+  const [sessionNotes, setSessionNotes] = useState("");
+  const [energy, setEnergy] = useState<number | null>(null);
+  const [difficulty, setDifficulty] = useState<number | null>(null);
+  const [cardioMachine, setCardioMachine] = useState("");
+  const [cardioDuration, setCardioDuration] = useState("");
+  const [cardioDistance, setCardioDistance] = useState("");
 
   // Reset inputs when current node changes — use a keyed child component
   // to avoid setState-in-effect lint rule
@@ -248,7 +256,13 @@ export function ActiveSessionHUD() {
   // ---- End session ----
   const handleEndSession = async () => {
     setShowEndDialog(false);
-    await endAndPersistSession();
+    await endAndPersistSession(sessionNotes, {
+      energy_rating: energy ?? undefined,
+      difficulty_rating: difficulty ?? undefined,
+      cardio_machine: cardioMachine || undefined,
+      cardio_duration_min: cardioDuration ? Number(cardioDuration) : undefined,
+      cardio_distance: cardioDistance || undefined,
+    });
     toast.success("Workout complete! Sets saved to records.");
   };
 
@@ -305,17 +319,103 @@ export function ActiveSessionHUD() {
 
       {isFinished ? (
         /* ---- Session complete ---- */
-        <div className="flex-1 flex flex-col items-center justify-center text-center gap-4">
-          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-emerald-500 text-white">
-            <Flag className="h-10 w-10" />
-          </div>
-          <div>
+        <div className="flex-1 flex flex-col gap-4">
+          <div className="text-center">
+            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-emerald-500 text-white mx-auto mb-3">
+              <Flag className="h-10 w-10" />
+            </div>
             <h2 className="text-xl font-bold">Session Complete</h2>
             <p className="text-sm text-muted-foreground mt-1">
               {loggedSets.length} sets logged ·{" "}
               {totalVolume.toLocaleString()} kg total volume
             </p>
           </div>
+
+          {/* Cardio details */}
+          <div className="rounded-xl border p-3 space-y-2">
+            <p className="text-xs font-semibold uppercase text-muted-foreground">Cardio</p>
+            <div className="grid grid-cols-3 gap-2">
+              <div>
+                <label className="text-[10px] uppercase text-muted-foreground">Machine</label>
+                <Input
+                  value={cardioMachine}
+                  onChange={(e) => setCardioMachine(e.target.value)}
+                  placeholder="Treadmill"
+                  className="h-9 text-sm"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] uppercase text-muted-foreground">Time (min)</label>
+                <Input
+                  type="number"
+                  value={cardioDuration}
+                  onChange={(e) => setCardioDuration(e.target.value)}
+                  placeholder="22"
+                  className="h-9 text-sm"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] uppercase text-muted-foreground">Distance/Steps</label>
+                <Input
+                  value={cardioDistance}
+                  onChange={(e) => setCardioDistance(e.target.value)}
+                  placeholder="2.5 km"
+                  className="h-9 text-sm"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Energy + Difficulty */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-xl border p-3">
+              <p className="text-xs font-semibold uppercase text-muted-foreground mb-2">Energy</p>
+              <div className="flex gap-1">
+                {[1,2,3,4,5,6,7,8,9,10].map((v) => (
+                  <button
+                    key={v}
+                    onClick={() => setEnergy(energy === v ? null : v)}
+                    className={cn(
+                      "flex-1 h-8 rounded text-xs font-bold transition-all",
+                      energy === v
+                        ? "bg-emerald-500 text-white scale-110"
+                        : "bg-muted text-muted-foreground"
+                    )}
+                  >
+                    {v}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="rounded-xl border p-3">
+              <p className="text-xs font-semibold uppercase text-muted-foreground mb-2">Difficulty</p>
+              <div className="flex gap-1">
+                {[1,2,3,4,5,6,7,8,9,10].map((v) => (
+                  <button
+                    key={v}
+                    onClick={() => setDifficulty(difficulty === v ? null : v)}
+                    className={cn(
+                      "flex-1 h-8 rounded text-xs font-bold transition-all",
+                      difficulty === v
+                        ? "bg-rose-500 text-white scale-110"
+                        : "bg-muted text-muted-foreground"
+                    )}
+                  >
+                    {v}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Session notes */}
+          <Textarea
+            value={sessionNotes}
+            onChange={(e) => setSessionNotes(e.target.value)}
+            placeholder="Session notes (optional): How did it feel? PRs?"
+            className="min-h-[60px] text-sm"
+          />
+
           <Button
             size="lg"
             className="bg-emerald-600 hover:bg-emerald-700 gap-2"

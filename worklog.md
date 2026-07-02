@@ -212,3 +212,97 @@ Stage Summary:
 - ALL flagged gaps fixed + ALL training aids + ALL polish added
 - Browser-verified: backup, catalog, recovery, HUD (timer/RPE/warmup/progression), PRs, streaks, milestones, drag-reorder, duplicate-day, deload
 - Lint: 0 errors, 0 warnings
+
+---
+Task ID: seed-physc-gym
+Agent: sub-agent (general-purpose)
+Task: Rewrite src/lib/seed.ts to replace the demo Push Day / Leg Day routine with the full Physc Gym 6-day training split + user biometrics
+
+Work Log:
+- Rewrote `src/lib/seed.ts` header comments to describe the new Physc Gym split + biometric seeding
+- Added imports: `Biometric`, `EquipmentKind`, `EquipmentStatus`, `MachineWeightType` types from `@/lib/types`
+- Kept `buildEquipment()` function unchanged (still pulls from inventory.json) but added `as MachineWeightType` / `as EquipmentStatus` casts on machine fields — fixes two pre-existing strict-TS errors that surfaced because `resolveJsonModule` infers JSON string fields as the wider `string` type
+- Added `equipmentSourceFor(equipmentId)` helper that maps an equipment id back to a properly-typed `{ type: EquipmentKind; preferred_id?: string }` value (bar_* → barbell, dumbbell_* → dumbbell, mach_*/treadmill_* → machine, none_bodyweight → bodyweight). This removes the need for the old per-block `type: "barbell" as const` casts
+- Replaced the 16-exercise demo catalog with a 39-exercise catalog (`EXERCISE_DEFS`) covering every move in the Physc Gym routine plus their fallback targets. Each exercise carries: id, name, target_muscle, exercise_type (machine/non-machine), equipment_id, ordered fallback_ids, and a derived visual_tag from `TAG_CONFIG`
+- Exercise catalog highlights:
+  - Legs: Squat, Lunges, Leg Press, Hack Squat (fallback), Seated Calf Raise, Leg Curl, Leg Extension
+  - Shoulders: Overhead Press, Shoulder Press Machine, DB Shoulder Press (fallback), DB Lateral Raise, DB Front Raise, Rear Delt Cable Fly, DB Rear Delt Fly (fallback)
+  - Back: Lat Pulldown Broad Grip, Lat Pulldown Narrow Grip (both linked to mach_lat_pulldown_01 as required), Cable Seated Row, T-Bar Row, Barbell Bent-Over Row (fallback), DB Shrugs, Barbell Shrug (fallback)
+  - Biceps: EZ Bar Curl, DB Curl (fallback), Incline DB Curl, Preacher Curl Machine, Reverse Cable Curl
+  - Chest: Barbell Bench Press, Incline DB Press, Decline Barbell Press, Seated Chest Press Machine (fallback), Pec Deck Fly, Cable Crossover (fallback), DB Fly (fallback), DB Pullover
+  - Triceps: Cable Tricep Pushdown, Triceps Dip Machine (cable crossover primary — no dip machine in inventory), French Curl (EZ Bar Skull Crusher), DB Skull Crusher (fallback), Triceps Kickback
+- Built `EXERCISE_MAP` lookup table from `EXERCISE_DEFS` so the routine builder can resolve name/type/fallbacks/equipment_source from a single exercise_id
+- Replaced the old demo `buildRoutineNodes()` logic with a clean data-driven approach:
+  - `ROUTINE_DAYS` array defines the 6 training days (Mon=Legs, Tue=Shoulders, Wed=Back, Thu=Biceps, Fri=Chest, Sat=Triceps) — each exercise is a `block()` call defaulting to 3 sets × 10 reps × 120s rest, empty `sets_override`
+  - Loop iterates day 0→6; Sunday (no routine entry) gets a "Rest Day" label and is skipped (no pre/exercise/post nodes) per spec
+  - Every training day: 1 fixed pre block ("Dynamic Warm-up & Joint Mobility", stretching, 8 min) → N exercise blocks (correct `exercise_type` per catalog entry, `fallback_ids` propagated, `equipment_source` derived) → 1 fixed post block ("Steady State Cardio", cardio, 22 min, intensity 4% incline @ 6 km/h)
+  - Dropped the old `visual_tag: undefined as never` and `as RoutineNode` casts — the node literals now match `RoutineNode` cleanly without any cast (VisualTag is not part of RoutineNode)
+- Added `buildBiometrics()` returning the three baseline entries:
+  - Tier 2 height = 168 cm
+  - Tier 1 body_weight = 59.3 kg
+  - Tier 2 body_fat_pct = 14 %
+- Updated `seedDatabase()`: routine version label changed from "Initial Routine" to "Physc Gym 6-Day Split"; transaction now includes `db.biometrics` and calls `db.biometrics.bulkPut(biometrics)` after the routine write
+- `resetDatabase()` signature unchanged; it already cleared `db.biometrics` (kept as-is) and re-seeds via `seedDatabase()`
+
+Stage Summary:
+- `src/lib/seed.ts` fully rewritten — 788 lines, no TODOs, no placeholders
+- Catalog: 39 exercises (28 in routine + 11 fallback-only entries)
+- Routine: 6 training days × (1 pre + N exercises + 1 post) + 1 Sunday rest-day label
+- 28 routine exercise nodes seeded across the week (Legs 6, Shoulders 4, Back 5, Biceps 4, Chest 5, Triceps 4)
+- Biometrics: 3 baseline entries seeded (height, body_weight, body_fat_pct) with correct tiers
+- Function signatures preserved: `seedDatabase(): Promise<void>` and `resetDatabase(): Promise<void>` — no consumer changes needed (`src/app/page.tsx` and `src/components/settings/data-management.tsx` continue to work as-is)
+- TypeScript: zero errors on `src/lib/seed.ts` (`npx tsc --noEmit` reports no seed.ts issues)
+- ESLint: clean — `npx eslint src/lib/seed.ts` returns no output (0 errors, 0 warnings)
+- No React 19 effect/setState concerns (file is a pure data seeder with no React components)
+
+
+---
+Task ID: password-gate-physc-gym-logsheet
+Agent: main
+Task: Password gate (nero) + Physc Gym 6-day routine seed + Workout Log Sheet export with Energy/Difficulty/Cardio fields
+
+Work Log:
+
+PASSWORD GATE:
+- Created `.env.local` with `APP_PASSWORD=nero`
+- Created `src/proxy.ts` (Next.js 16 proxy convention, replaces deprecated middleware) — checks `ironlog-auth` cookie, returns inline HTML login page if missing
+- Created `src/app/api/auth/route.ts` — POST handler verifies password, sets httpOnly cookie (30 day expiry); DELETE handler clears cookie
+- Login page: dark theme, centered password input, error message on wrong password, auto-reload on success
+- Verified: visiting URL shows login prompt, entering "nero" unlocks the app, cookie persists for 30 days
+
+PHysC GYM ROUTINE SEED:
+- Rewrote `src/lib/seed.ts` with full 6-day Physc Gym split (subagent task seed-physc-gym):
+  - Monday: Legs (Squats, Lunges, Leg Press, Seated Calf Raise, Leg Curl, Leg Extension)
+  - Tuesday: Shoulders (Overhead Press, Lateral Raises, Front Raises, Rear Delt Fly)
+  - Wednesday: Back (Lat Pulldown Broad, Lat Pulldown Narrow, Seated Row, T-Bar Row, DB Shrugs)
+  - Thursday: Biceps (Biceps Curl, Incline DB Curl, Preacher Curl, Reverse Cable Curl)
+  - Friday: Chest (Flat Press, Incline Press, Decline Press, Pec Fly, DB Pullover)
+  - Saturday: Triceps (Pushdown, Dip Machine, French Curl, Kickback)
+  - Sunday: Rest Day
+- Fixed pre-workout block: "Dynamic Warm-up & Joint Mobility" (8 min, stretching)
+- Fixed post-workout block: "Steady State Cardio" (22 min, cardio)
+- Seeded biometrics: Height 168cm (Tier 2), Weight 59.3kg (Tier 1), Body Fat 14% (Tier 2)
+- 39 exercises in catalog with proper equipment mapping + fallback_ids
+
+NEW SESSION FIELDS:
+- Extended Session type with: energy_rating (1-10), difficulty_rating (1-10), cardio_machine, cardio_duration_min, cardio_distance
+- Updated endAndPersistSession to accept sessionNotes + sessionMeta (energy/difficulty/cardio)
+- Added UI inputs on session-complete screen:
+  - Cardio section: Machine, Time (min), Distance/Steps text inputs
+  - Energy: 1-10 button grid (emerald when selected)
+  - Difficulty: 1-10 button grid (rose when selected)
+  - Session notes textarea
+
+LOG SHEET EXPORT:
+- Created `src/lib/log-sheet-export.ts` — generateLogSheet (blank template for selected days), generateCompletedLogSheet (filled from session data)
+- Format per user spec: Date, Day, exercise list with blanks (___ kg – 3 sets × 10 reps), Cardio section, Energy/Difficulty ratings
+- Created `src/components/export/log-sheet-export-dialog.tsx` — day multi-select (checkboxes), generate button, copy + download options
+- Added "Workout Log Sheet" button in Settings hub (sky-blue Calendar icon)
+
+Stage Summary:
+- Password gate: working (proxy.ts + API route + cookie), password "nero"
+- Physc Gym routine: 6-day split seeded with 39 exercises + biometrics
+- Log sheet export: generates printable templates with blanks for kg/sets/reps/cardio/energy/difficulty
+- Session completion: Energy/Difficulty/Cardio inputs added
+- Browser-verified: login prompt → password "nero" → app loads with Physc Gym 6-day split → log sheet export generates correct format
+- Lint: 0 errors, 0 warnings

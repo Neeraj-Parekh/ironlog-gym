@@ -32,11 +32,13 @@ import {
   Volume2,
   Zap,
   Calculator,
+  Calendar,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ThemeControls } from "@/components/theme/theme-controls";
 import { useState } from "react";
 import { ExportDialog } from "@/components/export/export-dialog";
+import { LogSheetExportDialog } from "@/components/export/log-sheet-export-dialog";
 import { DataManagementSection } from "@/components/settings/data-management";
 import { ExerciseCatalogDialog } from "@/components/routine/exercise-catalog-dialog";
 
@@ -84,6 +86,7 @@ const NOTIFICATION_OPTIONS: Array<{
 export function SettingsHub() {
   const setView = useAppStore((s) => s.setView);
   const [showExport, setShowExport] = useState(false);
+  const [showLogSheet, setShowLogSheet] = useState(false);
   const [showCatalog, setShowCatalog] = useState(false);
   const {
     hapticsEnabled,
@@ -173,6 +176,23 @@ export function SettingsHub() {
             <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
           </button>
 
+          {/* Log sheet export */}
+          <button
+            onClick={() => setShowLogSheet(true)}
+            className="w-full flex items-center gap-3 rounded-xl border bg-card p-3 text-left hover:bg-accent/50 transition-colors"
+          >
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg text-sky-500 bg-sky-500/10">
+              <Calendar className="h-5 w-5" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-medium text-sm">Workout Log Sheet</p>
+              <p className="text-xs text-muted-foreground line-clamp-1">
+                Printable template with blanks for kg/sets/reps/cardio/energy
+              </p>
+            </div>
+            <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+          </button>
+
           {/* Exercise catalog */}
           <button
             onClick={() => setShowCatalog(true)}
@@ -193,6 +213,7 @@ export function SettingsHub() {
       </div>
 
       <ExportDialog open={showExport} onOpenChange={setShowExport} />
+      <LogSheetExportDialog open={showLogSheet} onOpenChange={setShowLogSheet} />
       <ExerciseCatalogDialog open={showCatalog} onOpenChange={setShowCatalog} />
 
       {/* Appearance / Theme */}

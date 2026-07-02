@@ -131,6 +131,14 @@ export interface Session {
   day_of_week: DayOfWeek;
   plan_snapshot: RoutineNode[]; // deep copy of the routine at session start
   status: SessionStatus;
+  notes?: string; // overall session notes
+  // Post-workout ratings:
+  energy_rating?: number; // 1-10
+  difficulty_rating?: number; // 1-10
+  // Cardio details:
+  cardio_machine?: string;
+  cardio_duration_min?: number;
+  cardio_distance?: string; // distance or steps
 }
 
 // ---- Logged set (atomic performance record) ----

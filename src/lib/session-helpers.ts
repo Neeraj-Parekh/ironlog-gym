@@ -97,7 +97,16 @@ export async function startSessionForDay(day: DayOfWeek): Promise<string> {
  * End and persist the session with all logged sets.
  * Also: records PRs, updates streak, checks milestones.
  */
-export async function endAndPersistSession(): Promise<{
+export async function endAndPersistSession(
+  sessionNotes?: string,
+  sessionMeta?: {
+    energy_rating?: number;
+    difficulty_rating?: number;
+    cardio_machine?: string;
+    cardio_duration_min?: number;
+    cardio_distance?: string;
+  }
+): Promise<{
   prs: number;
   streak: number;
   milestones: number;
@@ -129,6 +138,12 @@ export async function endAndPersistSession(): Promise<{
     await db.sessions.update(session.id, {
       status: "completed",
       ended_at: now,
+      notes: sessionNotes || undefined,
+      energy_rating: sessionMeta?.energy_rating,
+      difficulty_rating: sessionMeta?.difficulty_rating,
+      cardio_machine: sessionMeta?.cardio_machine,
+      cardio_duration_min: sessionMeta?.cardio_duration_min,
+      cardio_distance: sessionMeta?.cardio_distance,
     });
     if (sessionSets.length > 0) {
       await db.session_sets.bulkPut(sessionSets);
