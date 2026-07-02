@@ -114,8 +114,8 @@ export function RestTimerPill() {
           </div>
         )}
 
-      {/* The pill itself */}
-      <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-2rem)] max-w-md">
+      {/* The pill itself — positioned higher to avoid covering action buttons */}
+      <div className="fixed bottom-44 left-1/2 -translate-x-1/2 z-40 w-[calc(100%-2rem)] max-w-md">
         <div
           className={cn(
             "relative overflow-hidden rounded-2xl border bg-card shadow-lg",

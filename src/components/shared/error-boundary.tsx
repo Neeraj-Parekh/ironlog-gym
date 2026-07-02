@@ -13,6 +13,10 @@ interface State {
   error?: Error;
 }
 
+/**
+ * Error boundary — catches render errors and shows a friendly message
+ * instead of crashing the whole app.
+ */
 export class ErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
     super(props);
@@ -38,7 +42,8 @@ export class ErrorBoundary extends Component<Props, State> {
           </div>
           <h2 className="text-lg font-bold mb-1">Something went wrong</h2>
           <p className="text-sm text-muted-foreground mb-4 max-w-xs">
-            This view hit an error. Your data is safe. Try reloading.
+            This view hit an error. Your data is safe. Try reloading — if it
+            persists, a hard reset from Profile → Data Management can help.
           </p>
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => this.setState({ hasError: false })}>

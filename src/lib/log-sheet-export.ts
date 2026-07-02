@@ -1,9 +1,9 @@
 // ============================================================
-// Log Sheet Export — generates printable/fillable workout log templates
-// Format: blank template with exercise list + cardio + energy/difficulty
+// Log Sheet Export — generates date-wise workout log templates
+// Shows a calendar of dates, greyed out for days with no session
 // ============================================================
 import { getDB } from "./dexie";
-import type { RoutineNode, DayOfWeek } from "./types";
+import type { Session, SessionSet, DayOfWeek } from "./types";
 
 const DAY_NAMES = [
   "Sunday",
@@ -16,32 +16,21 @@ const DAY_NAMES = [
 ];
 
 export interface LogSheetOptions {
-  days: DayOfWeek[]; // which days to include
-  weekLabel?: string; // optional week label
-  startDate?: string; // ISO date for the first day
+  startDate: string; // ISO date (YYYY-MM-DD)
+  numDays: number; // how many days to generate (7, 14, 30)
 }
 
 /**
- * Generate a blank workout log sheet for selected days.
- * Format per the user's spec:
- *
- * Date: 2 July 2026
- * Day: Monday (Legs)
- *
- * 1. Squats – ___ kg – ___ sets × ___ reps
- * 2. Lunges – ___ kg – ___ sets × ___ reps
- * ...
- *
- * Cardio:
- * Machine: ___
- * Time: ___
- * Distance/Steps: ___
- *
- * Energy: __/10
- * Difficulty: __/10
+ * Generate a date-wise workout log sheet.
+ * For each date in the range:
+ * - If a session exists: fill in the actual data
+ * - If no session: show the planned routine for that day with blanks
+ * - Rest days: greyed out
  */
 export async function generateLogSheet(options: LogSheetOptions): Promise<string> {
   const db = getDB();
+  const start = new Date(options.startDate);
+  const lines: string[] = [];
 
   // Get active version
   const version =
@@ -53,165 +42,141 @@ export async function generateLogSheet(options: LogSheetOptions): Promise<string
 
   if (!version) return "No routine found.";
 
-  // Get all nodes
+  // Get all routine nodes + day labels
   const allNodes = await db.routine_nodes
     .where("version_id")
     .equals(version.id)
     .toArray();
-
-  // Get day labels
   const dayLabels = await db.day_labels
     .where("version_id")
     .equals(version.id)
     .filter((l) => l.is_active)
     .toArray();
-
   const labelMap = new Map<number, string>();
-  for (const l of dayLabels) {
-    labelMap.set(l.day_of_week, l.label);
-  }
+  for (const l of dayLabels) labelMap.set(l.day_of_week, l.label);
 
-  const lines: string[] = [];
-  const startDate = options.startDate ? new Date(options.startDate) : new Date();
+  // Get all completed sessions in the date range
+  const allSessions = await db.sessions
+    .where("status")
+    .equals("completed" as never)
+    .toArray();
 
-  for (const day of options.days) {
-    // Calculate date for this day
-    const dayDate = new Date(startDate);
-    const currentDay = startDate.getDay();
-    const diff = (day - currentDay + 7) % 7;
-    dayDate.setDate(dayDate.getDate() + diff);
+  for (let i = 0; i < options.numDays; i++) {
+    const date = new Date(start);
+    date.setDate(date.getDate() + i);
+    const dateStr = date.toISOString().slice(0, 10);
+    const dayOfWeek = date.getDay() as DayOfWeek;
+    const dayName = DAY_NAMES[dayOfWeek];
+    const dayLabel = labelMap.get(dayOfWeek) ?? dayName;
 
-    const dateStr = dayDate.toLocaleDateString("en-GB", {
+    // Check if there's a completed session for this date
+    const session = allSessions.find((s) => s.date === dateStr);
+
+    // Get planned exercises for this day
+    const dayNodes = allNodes
+      .filter((n) => n.day_of_week === dayOfWeek && n.block_type === "exercise")
+      .sort((a, b) => a.sequence_order - b.sequence_order);
+
+    const isRestDay = dayNodes.length === 0;
+
+    // Format date header
+    const formattedDate = date.toLocaleDateString("en-GB", {
       day: "numeric",
       month: "long",
       year: "numeric",
     });
 
-    const dayName = DAY_NAMES[day];
-    const dayLabel = labelMap.get(day) ?? dayName;
+    if (session) {
+      // ---- Completed session — fill in actual data ----
+      const sets = await db.session_sets
+        .where("session_id")
+        .equals(session.id)
+        .toArray();
 
-    lines.push(`Date: ${dateStr}`);
-    lines.push(`Day: ${dayName} (${dayLabel})`);
-    lines.push("");
-
-    // Get exercise nodes for this day
-    const dayNodes = allNodes
-      .filter((n) => n.day_of_week === day)
-      .sort((a, b) => {
-        const order = { pre: 0, exercise: 1, post: 2 };
-        if (a.block_type !== b.block_type)
-          return order[a.block_type] - order[b.block_type];
-        return a.sequence_order - b.sequence_order;
-      });
-
-    const exercises = dayNodes.filter((n) => n.block_type === "exercise");
-    const preBlock = dayNodes.find((n) => n.block_type === "pre");
-    const postBlock = dayNodes.find((n) => n.block_type === "post");
-
-    // Pre-workout note
-    if (preBlock) {
-      lines.push(`Warm-up: ${preBlock.name} (${preBlock.duration_minutes} min)`);
+      lines.push(`Date: ${formattedDate}`);
+      lines.push(`Day: ${dayName} (${session.day_label})`);
       lines.push("");
-    }
 
-    // Exercises with blanks
-    if (exercises.length > 0) {
-      exercises.forEach((ex, i) => {
+      // Group sets by exercise
+      const byExercise = new Map<string, SessionSet[]>();
+      for (const s of sets) {
+        if (!byExercise.has(s.exercise_name)) byExercise.set(s.exercise_name, []);
+        byExercise.get(s.exercise_name)!.push(s);
+      }
+
+      let idx = 1;
+      for (const [exerciseName, exSets] of byExercise) {
+        const bestSet = exSets.reduce((best, s) => {
+          const bVol = best.weight_kg * best.reps_completed;
+          const sVol = s.weight_kg * s.reps_completed;
+          return sVol > bVol ? s : best;
+        }, exSets[0]);
+        lines.push(
+          `${idx}. ${exerciseName} – ${bestSet.weight_kg} kg – ${exSets.length} sets × ${bestSet.reps_completed} reps`
+        );
+        idx++;
+      }
+
+      lines.push("");
+      lines.push("Cardio:");
+      lines.push(`Machine: ${session.cardio_machine ?? "___"}`);
+      lines.push(`Time: ${session.cardio_duration_min ?? "___"} min`);
+      lines.push(`Distance/Steps: ${session.cardio_distance ?? "___"}`);
+      lines.push("");
+      lines.push(`Energy: ${session.energy_rating ?? "_"}/10`);
+      lines.push(`Difficulty: ${session.difficulty_rating ?? "_"}/10`);
+      if (session.notes) {
+        lines.push("");
+        lines.push(`Notes: ${session.notes}`);
+      }
+    } else if (isRestDay) {
+      // ---- Rest day — greyed out ----
+      lines.push(`Date: ${formattedDate}`);
+      lines.push(`Day: ${dayName} (Rest Day)`);
+      lines.push("");
+      lines.push("[ No training scheduled — rest day ]");
+      lines.push("");
+      lines.push("Cardio: ___");
+      lines.push("Energy: ___/10");
+      lines.push("Difficulty: ___/10");
+    } else {
+      // ---- Planned but not logged — blank template ----
+      const preBlock = allNodes.find(
+        (n) => n.day_of_week === dayOfWeek && n.block_type === "pre"
+      );
+      lines.push(`Date: ${formattedDate}`);
+      lines.push(`Day: ${dayName} (${dayLabel})`);
+      lines.push("");
+
+      if (preBlock) {
+        lines.push(`Warm-up: ${preBlock.name} (${preBlock.duration_minutes} min)`);
+        lines.push("");
+      }
+
+      dayNodes.forEach((ex, idx) => {
         const sets = ex.sets_count ?? 3;
         const reps = ex.target_reps_default ?? 10;
         lines.push(
-          `${i + 1}. ${ex.name} – ___ kg – ${sets} sets × ${reps} reps`
+          `${idx + 1}. ${ex.name} – ___ kg – ${sets} sets × ${reps} reps`
         );
       });
+
       lines.push("");
-    } else {
-      lines.push("Rest day — no exercises prescribed.");
+      lines.push("Cardio:");
+      lines.push("Machine: ___");
+      lines.push("Time: ___ min");
+      lines.push("Distance/Steps: ___");
       lines.push("");
+      lines.push("Energy: ___/10");
+      lines.push("Difficulty: ___/10");
     }
 
-    // Cardio section
-    lines.push("Cardio:");
-    lines.push(`Machine: ___`);
-    lines.push(`Time: ___ min`);
-    lines.push(`Distance/Steps: ___`);
-    lines.push("");
-
-    // Energy and Difficulty
-    lines.push(`Energy: ___/10`);
-    lines.push(`Difficulty: ___/10`);
-
     // Separator between days
-    if (options.days.indexOf(day) < options.days.length - 1) {
+    if (i < options.numDays - 1) {
       lines.push("");
       lines.push("─".repeat(40));
       lines.push("");
     }
-  }
-
-  return lines.join("\n");
-}
-
-/**
- * Generate log sheet for a single completed session
- * (fills in the blanks with actual logged data)
- */
-export async function generateCompletedLogSheet(sessionId: string): Promise<string> {
-  const db = getDB();
-  const session = await db.sessions.get(sessionId);
-  if (!session) return "Session not found.";
-
-  const sets = await db.session_sets
-    .where("session_id")
-    .equals(sessionId)
-    .toArray();
-
-  // Group by exercise
-  const byExercise = new Map<string, typeof sets>();
-  for (const s of sets) {
-    if (!byExercise.has(s.exercise_name)) byExercise.set(s.exercise_name, []);
-    byExercise.get(s.exercise_name)!.push(s);
-  }
-
-  const date = new Date(session.started_at).toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
-
-  const dayName = DAY_NAMES[session.day_of_week];
-
-  const lines: string[] = [
-    `Date: ${date}`,
-    `Day: ${dayName} (${session.day_label})`,
-    "",
-  ];
-
-  // Exercises with filled data
-  let idx = 1;
-  for (const [exerciseName, exSets] of byExercise) {
-    const bestSet = exSets.reduce((best, s) => {
-      const bVol = best.weight_kg * best.reps_completed;
-      const sVol = s.weight_kg * s.reps_completed;
-      return sVol > bVol ? s : best;
-    }, exSets[0]);
-    lines.push(
-      `${idx}. ${exerciseName} – ${bestSet.weight_kg} kg – ${exSets.length} sets × ${bestSet.reps_completed} reps`
-    );
-    idx++;
-  }
-
-  lines.push("");
-  lines.push("Cardio:");
-  lines.push(`Machine: ${session.cardio_machine ?? "___"}`);
-  lines.push(`Time: ${session.cardio_duration_min ?? "___"} min`);
-  lines.push(`Distance/Steps: ${session.cardio_distance ?? "___"}`);
-  lines.push("");
-  lines.push(`Energy: ${session.energy_rating ?? "_"}/10`);
-  lines.push(`Difficulty: ${session.difficulty_rating ?? "_"}/10`);
-
-  if (session.notes) {
-    lines.push("");
-    lines.push(`Notes: ${session.notes}`);
   }
 
   return lines.join("\n");

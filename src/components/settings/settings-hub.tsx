@@ -187,7 +187,7 @@ export function SettingsHub() {
             <div className="flex-1 min-w-0">
               <p className="font-medium text-sm">Workout Log Sheet</p>
               <p className="text-xs text-muted-foreground line-clamp-1">
-                Printable template with blanks for kg/sets/reps/cardio/energy
+                Date-wise printable template with blanks
               </p>
             </div>
             <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />

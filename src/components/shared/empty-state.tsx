@@ -41,6 +41,7 @@ export function EmptyState({
   );
 }
 
+// ---- Loading skeleton ----
 export function CardSkeleton({ count = 3 }: { count?: number }) {
   return (
     <div className="space-y-3">

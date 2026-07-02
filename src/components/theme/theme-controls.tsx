@@ -27,7 +27,7 @@ export function ThemeControls() {
 
   return (
     <div className="space-y-4">
-      {/* Color schema picker */}
+      {/* Color schema picker — larger with preview swatches */}
       <div>
         <Label className="text-xs font-medium flex items-center gap-1.5 mb-2">
           <Palette className="h-3.5 w-3.5" />
@@ -41,17 +41,36 @@ export function ThemeControls() {
                 key={schema.id}
                 onClick={() => setColorSchema(schema.id)}
                 className={cn(
-                  "relative flex flex-col items-center gap-1 rounded-lg border-2 p-2 transition-all",
+                  "relative flex flex-col items-center gap-1.5 rounded-xl border-2 p-2.5 transition-all",
                   active
-                    ? "border-foreground scale-105"
+                    ? "border-foreground scale-105 shadow-md"
                     : "border-transparent hover:border-border"
                 )}
                 title={schema.description}
               >
-                <div
-                  className="h-8 w-8 rounded-full ring-2 ring-background shadow-sm"
-                  style={{ backgroundColor: schema.light.primary }}
-                />
+                {/* Color preview swatch */}
+                <div className="flex gap-0.5">
+                  <div
+                    className="h-8 w-2 rounded-l-full"
+                    style={{ backgroundColor: schema.light.primary }}
+                  />
+                  <div
+                    className="h-8 w-2"
+                    style={{ backgroundColor: schema.light.accent }}
+                  />
+                  <div
+                    className="h-8 w-2"
+                    style={{ backgroundColor: schema.light["chart-1"] }}
+                  />
+                  <div
+                    className="h-8 w-2"
+                    style={{ backgroundColor: schema.light["chart-2"] }}
+                  />
+                  <div
+                    className="h-8 w-2 rounded-r-full"
+                    style={{ backgroundColor: schema.light["chart-3"] }}
+                  />
+                </div>
                 <span className="text-[10px] font-medium">{schema.name}</span>
                 {active && (
                   <div className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-foreground text-background">

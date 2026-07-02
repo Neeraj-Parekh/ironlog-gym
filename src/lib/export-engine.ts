@@ -1,7 +1,11 @@
 // ============================================================
 // Export engine — generates clipboard-ready output
 // Channel 1: Post-session Markdown (for external AI food/recovery suggestions)
+//             NOTE: Vitality data is PRIVATE — never included here.
+//             Only session performance, volume, and bodyweight context.
 // Channel 2: Routine JSON backup (full routine export for re-import)
+// Channel 3: Full DB backup (in db-backup.ts — includes everything,
+//             user-initiated only for device migration)
 // ============================================================
 import type { Session, SessionSet, Biometric, RoutineVersion, RoutineNode, Exercise, Equipment } from "@/lib/types";
 import {
@@ -9,6 +13,7 @@ import {
   estimate1RM,
   bestSet,
 } from "./analytics";
+import { estimateCaloriesBurned } from "./calorie-calc";
 
 interface ExportContext {
   session: Session;
@@ -20,13 +25,17 @@ interface ExportContext {
 /**
  * Generate the post-session Markdown payload.
  * Optimized for LLM token efficiency — compact but complete.
- * Includes: session metadata, per-set logs, volume math, bodyweight context.
+ * Includes: session metadata, per-set logs, volume math, bodyweight context, calorie estimate.
  */
 export function generateSessionMarkdown(ctx: ExportContext): string {
   const { session, sets, latestBodyweight, weeklyVolume } = ctx;
   const totalVolume = computeTotalVolume(sets);
   const best = bestSet(sets);
   const best1RM = best ? estimate1RM(best.weight_kg, best.reps_completed) : 0;
+  const caloriesBurned = estimateCaloriesBurned(
+    sets,
+    latestBodyweight?.value ?? null
+  );
 
   // Group sets by exercise
   const byExercise = new Map<string, SessionSet[]>();
@@ -43,6 +52,7 @@ export function generateSessionMarkdown(ctx: ExportContext): string {
     `**Total Volume:** ${totalVolume.toLocaleString()} kg`,
     `**Best Set 1RM (Epley):** ${best1RM.toFixed(1)} kg`,
     `**Sets Logged:** ${sets.length}`,
+    `**Estimated Calories Burned:** ${caloriesBurned} kcal (METs formula)`,
     latestBodyweight
       ? `**Body Weight:** ${latestBodyweight.value} ${latestBodyweight.unit} (logged ${formatDaysAgo(latestBodyweight.logged_at)})`
       : `**Body Weight:** not recorded`,

@@ -55,6 +55,7 @@ import {
   Flag,
   Flame,
   Timer,
+  Eye,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -64,6 +65,7 @@ import {
   WarmupCalcCard,
   ProgressionCard,
 } from "./hud-extras";
+import { PreWorkoutContextCard } from "./pre-workout-context-card";
 
 export function ActiveSessionHUD() {
   const {
@@ -102,8 +104,9 @@ export function ActiveSessionHUD() {
   const [rpe, setRpe] = useState<number | null>(null);
   const [notes, setNotes] = useState("");
   const [showRpeNotes, setShowRpeNotes] = useState(false);
-  // Session completion fields
+  // Session-level notes (entered at session completion)
   const [sessionNotes, setSessionNotes] = useState("");
+  // Session completion ratings
   const [energy, setEnergy] = useState<number | null>(null);
   const [difficulty, setDifficulty] = useState<number | null>(null);
   const [cardioMachine, setCardioMachine] = useState("");
@@ -116,7 +119,7 @@ export function ActiveSessionHUD() {
   const isFinished = currentIndex >= queue.length;
 
   // Keep screen on during active workout (releases on session end)
-  useWakeLock(!!session && !isFinished);
+  const { isLocked: wakeLocked } = useWakeLock(!!session && !isFinished);
 
   // Previous session data for current exercise
   const { data: prevSession } = usePreviousSession(
@@ -285,6 +288,15 @@ export function ActiveSessionHUD() {
         >
           <X className="h-4 w-4" />
         </button>
+        {/* Wake lock indicator */}
+        {wakeLocked && (
+          <span
+            className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-500"
+            title="Screen lock active — screen will stay on"
+          >
+            <Eye className="h-3.5 w-3.5" />
+          </span>
+        )}
         <div className="flex-1">
           <div className="flex items-center justify-between mb-1">
             <span className="text-xs font-medium">
@@ -316,6 +328,11 @@ export function ActiveSessionHUD() {
           </div>
         </div>
       </div>
+
+      {/* Pre-workout context (only shown before first set) */}
+      {loggedSets.length === 0 && !isFinished && (
+        <PreWorkoutContextCard sessionId={session.id} hydrationMl={0} />
+      )}
 
       {isFinished ? (
         /* ---- Session complete ---- */
@@ -370,7 +387,7 @@ export function ActiveSessionHUD() {
           <div className="grid grid-cols-2 gap-3">
             <div className="rounded-xl border p-3">
               <p className="text-xs font-semibold uppercase text-muted-foreground mb-2">Energy</p>
-              <div className="flex gap-1">
+              <div className="flex gap-0.5">
                 {[1,2,3,4,5,6,7,8,9,10].map((v) => (
                   <button
                     key={v}
@@ -389,7 +406,7 @@ export function ActiveSessionHUD() {
             </div>
             <div className="rounded-xl border p-3">
               <p className="text-xs font-semibold uppercase text-muted-foreground mb-2">Difficulty</p>
-              <div className="flex gap-1">
+              <div className="flex gap-0.5">
                 {[1,2,3,4,5,6,7,8,9,10].map((v) => (
                   <button
                     key={v}
@@ -409,12 +426,14 @@ export function ActiveSessionHUD() {
           </div>
 
           {/* Session notes */}
-          <Textarea
-            value={sessionNotes}
-            onChange={(e) => setSessionNotes(e.target.value)}
-            placeholder="Session notes (optional): How did it feel? PRs?"
-            className="min-h-[60px] text-sm"
-          />
+          <div className="w-full">
+            <Textarea
+              value={sessionNotes}
+              onChange={(e) => setSessionNotes(e.target.value)}
+              placeholder="Session notes (optional): How did it feel? Gym crowded? PRs?"
+              className="min-h-[60px] text-sm"
+            />
+          </div>
 
           <Button
             size="lg"
@@ -460,7 +479,7 @@ export function ActiveSessionHUD() {
             </div>
 
             {/* Previous session reference */}
-            <PreviousSessionCard data={prevSession} />
+            <PreviousSessionCard data={prevSession} currentWeight={displayWeight} />
 
             {/* Progression suggestion */}
             {showProgressionSuggestions && (
@@ -532,6 +551,26 @@ export function ActiveSessionHUD() {
               inputsRef={inputsRef}
               onWeightChange={setDisplayWeight}
             />
+
+            {/* Equipment hint for dumbbells */}
+            {currentNode.equipment_source?.type === "dumbbell" && displayWeight > 0 && (
+              <div className="mb-3 rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-2 text-xs">
+                <p className="font-medium">Dumbbell setup</p>
+                <p className="text-muted-foreground mt-0.5">
+                  Grab the <strong>{displayWeight}kg</strong> dumbbell pair
+                </p>
+              </div>
+            )}
+
+            {/* Equipment hint for machines */}
+            {currentNode.equipment_source?.type === "machine" && displayWeight > 0 && (
+              <div className="mb-3 rounded-lg border border-red-500/30 bg-red-500/5 p-2 text-xs">
+                <p className="font-medium">Machine setup</p>
+                <p className="text-muted-foreground mt-0.5">
+                  Pin at <strong>{displayWeight}kg</strong> on the stack
+                </p>
+              </div>
+            )}
 
             {/* Plate loading hint */}
             {plateResult && (

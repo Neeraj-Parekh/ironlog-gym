@@ -7,23 +7,19 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
-  DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Copy, Download, Check, Calendar } from "lucide-react";
 import { toast } from "sonner";
-
-const DAYS = [
-  { value: 1, label: "Monday" },
-  { value: 2, label: "Tuesday" },
-  { value: 3, label: "Wednesday" },
-  { value: 4, label: "Thursday" },
-  { value: 5, label: "Friday" },
-  { value: 6, label: "Saturday" },
-  { value: 0, label: "Sunday" },
-] as const;
 
 export function LogSheetExportDialog({
   open,
@@ -32,27 +28,17 @@ export function LogSheetExportDialog({
   open: boolean;
   onOpenChange: (v: boolean) => void;
 }) {
-  const [selectedDays, setSelectedDays] = useState<number[]>([1, 2, 3, 4, 5, 6]);
+  const [startDate, setStartDate] = useState(
+    new Date().toISOString().slice(0, 10)
+  );
+  const [numDays, setNumDays] = useState("7");
   const [output, setOutput] = useState("");
   const [copied, setCopied] = useState(false);
 
-  const toggleDay = (day: number) => {
-    setSelectedDays((prev) =>
-      prev.includes(day)
-        ? prev.filter((d) => d !== day)
-        : [...prev, day].sort()
-    );
-  };
-
   const handleGenerate = async () => {
-    if (selectedDays.length === 0) {
-      toast.error("Select at least one day");
-      return;
-    }
     const text = await generateLogSheet({
-      days: selectedDays as Array<
-        0 | 1 | 2 | 3 | 4 | 5 | 6
-      >,
+      startDate,
+      numDays: Number(numDays),
     });
     setOutput(text);
   };
@@ -73,7 +59,7 @@ export function LogSheetExportDialog({
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `ironlog-workout-sheet-${new Date().toISOString().slice(0, 10)}.txt`;
+    a.download = `ironlog-log-sheet-${startDate}.txt`;
     a.click();
     URL.revokeObjectURL(url);
     toast.success("Downloaded");
@@ -85,34 +71,41 @@ export function LogSheetExportDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Calendar className="h-4 w-4" />
-            Workout Log Sheet Export
+            Workout Log Sheet
           </DialogTitle>
           <DialogDescription>
-            Generate a printable log sheet with blanks for weight, sets, reps,
-            cardio, energy, and difficulty. Select which days to include.
+            Generate a date-wise log sheet. Completed sessions show actual data,
+            planned days show blanks, rest days are marked.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-3">
-          <Label className="text-xs font-medium">Select days</Label>
-          <div className="grid grid-cols-2 gap-2">
-            {DAYS.map((day) => (
-              <label
-                key={day.value}
-                className="flex items-center gap-2 rounded-lg border p-2 cursor-pointer hover:bg-accent/50"
-              >
-                <Checkbox
-                  checked={selectedDays.includes(day.value)}
-                  onCheckedChange={() => toggleDay(day.value)}
-                />
-                <span className="text-sm">{day.label}</span>
-              </label>
-            ))}
+          <div>
+            <Label className="text-xs font-medium">Start date</Label>
+            <Input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="mt-1"
+            />
+          </div>
+
+          <div>
+            <Label className="text-xs font-medium">Number of days</Label>
+            <Select value={numDays} onValueChange={setNumDays}>
+              <SelectTrigger className="mt-1">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="7">7 days (1 week)</SelectItem>
+                <SelectItem value="14">14 days (2 weeks)</SelectItem>
+                <SelectItem value="30">30 days (1 month)</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <Button
             onClick={handleGenerate}
-            disabled={selectedDays.length === 0}
             className="w-full gap-1.5"
           >
             <Calendar className="h-4 w-4" />

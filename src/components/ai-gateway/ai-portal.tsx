@@ -17,6 +17,8 @@ import type {
 } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -61,6 +63,7 @@ export function AIPortal() {
   const [targetDay, setTargetDay] = useState<DayOfWeek>(1);
   const [importing, setImporting] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [mode, setMode] = useState<"ai" | "quick">("ai");
 
   const { version } = useActiveVersion();
   const { exercises, reload: reloadExercises } = useExercises();
@@ -248,6 +251,41 @@ export function AIPortal() {
 
   return (
     <div className="px-4 py-4 pb-24 space-y-4">
+      {/* Mode toggle: AI Import vs Quick Add */}
+      <div className="flex gap-2 p-1 rounded-lg bg-muted/50">
+        <button
+          onClick={() => setMode("ai")}
+          className={cn(
+            "flex-1 py-2 rounded-md text-sm font-medium transition-all",
+            mode === "ai" ? "bg-background shadow-sm" : "text-muted-foreground"
+          )}
+        >
+          AI Import
+        </button>
+        <button
+          onClick={() => setMode("quick")}
+          className={cn(
+            "flex-1 py-2 rounded-md text-sm font-medium transition-all",
+            mode === "quick" ? "bg-background shadow-sm" : "text-muted-foreground"
+          )}
+        >
+          Quick Add
+        </button>
+      </div>
+
+      {mode === "quick" ? (
+        <QuickAddMode
+          targetDay={targetDay}
+          setTargetDay={setTargetDay}
+          exercises={exercises}
+          version={version}
+          onImported={() => {
+            useAppStore.getState().setSelectedDay(targetDay);
+            setView("day_batch_edit");
+          }}
+        />
+      ) : (
+        <>
       {/* Step 1: Copy blank schema */}
       <Card>
         <CardHeader className="pb-3">
@@ -470,6 +508,183 @@ export function AIPortal() {
           </div>
         </CardContent>
       </Card>
+        </>
+      )}
     </div>
+  );
+}
+
+// ---- Quick Add mode (guided, no JSON) ----
+function QuickAddMode({
+  targetDay,
+  setTargetDay,
+  exercises,
+  version,
+  onImported,
+}: {
+  targetDay: DayOfWeek;
+  setTargetDay: (d: DayOfWeek) => void;
+  exercises: Exercise[];
+  version: { id: string } | null;
+  onImported: () => void;
+}) {
+  const [selectedExercises, setSelectedExercises] = useState<string[]>([]);
+  const [setsCount, setSetsCount] = useState(3);
+  const [reps, setReps] = useState(10);
+  const [weight, setWeight] = useState(40);
+  const [search, setSearch] = useState("");
+  const [importing, setImporting] = useState(false);
+
+  const filtered = exercises.filter((e) =>
+    e.name.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const handleAdd = async () => {
+    if (!version || selectedExercises.length === 0) return;
+    setImporting(true);
+    try {
+      const db = getDB();
+      const existingNodes = await db.routine_nodes
+        .where("version_id")
+        .equals(version.id)
+        .filter((n) => n.day_of_week === targetDay && n.block_type === "exercise")
+        .toArray();
+      let seq = Math.max(0, ...existingNodes.map((n) => n.sequence_order)) + 1;
+
+      const newNodes = selectedExercises.map((exId) => {
+        const ex = exercises.find((e) => e.id === exId);
+        return {
+          id: uid("node"),
+          version_id: version.id,
+          day_of_week: targetDay,
+          block_type: "exercise" as const,
+          sequence_order: seq++,
+          exercise_id: exId,
+          name: ex?.name ?? "Exercise",
+          exercise_type: ex?.exercise_type ?? ("non-machine" as const),
+          is_fixed: false,
+          sets_count: setsCount,
+          target_reps_default: reps,
+          prescribed_rest_seconds: 120,
+          sets_override: Array.from({ length: setsCount }, (_, i) => ({
+            set_number: i + 1,
+            target_reps: reps,
+            target_weight_kg: weight,
+          })),
+          fallback_ids: ex?.fallback_ids ?? [],
+        };
+      });
+
+      await db.routine_nodes.bulkPut(newNodes);
+      toast.success(`Added ${newNodes.length} exercise(s)`);
+      onImported();
+    } catch (e) {
+      toast.error("Failed to add exercises");
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  return (
+    <Card>
+      <CardContent className="space-y-4 pt-4">
+        <div>
+          <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
+            Target day
+          </label>
+          <Select value={String(targetDay)} onValueChange={(v) => setTargetDay(Number(v) as DayOfWeek)}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {DAYS.map((d) => (
+                <SelectItem key={d.value} value={String(d.value)}>
+                  {d.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div>
+          <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
+            Search exercises
+          </label>
+          <Input
+            placeholder="Type to search..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="h-9"
+          />
+        </div>
+
+        <div className="max-h-48 overflow-y-auto space-y-1.5">
+          {filtered.slice(0, 20).map((ex) => (
+            <button
+              key={ex.id}
+              onClick={() => {
+                setSelectedExercises((prev) =>
+                  prev.includes(ex.id)
+                    ? prev.filter((id) => id !== ex.id)
+                    : [...prev, ex.id]
+                );
+              }}
+              className={cn(
+                "w-full flex items-center gap-2 rounded-lg border p-2 text-left transition-all",
+                selectedExercises.includes(ex.id)
+                  ? "border-foreground bg-accent"
+                  : "hover:bg-accent/50"
+              )}
+            >
+              <span className="text-sm font-medium flex-1 truncate">{ex.name}</span>
+              <span className="text-xs text-muted-foreground capitalize">{ex.target_muscle}</span>
+            </button>
+          ))}
+        </div>
+
+        {selectedExercises.length > 0 && (
+          <div className="grid grid-cols-3 gap-2">
+            <div>
+              <label className="text-[10px] uppercase text-muted-foreground">Sets</label>
+              <Input
+                type="number"
+                min={1}
+                max={10}
+                value={setsCount}
+                onChange={(e) => setSetsCount(Number(e.target.value))}
+                className="h-9 text-center font-semibold"
+              />
+            </div>
+            <div>
+              <label className="text-[10px] uppercase text-muted-foreground">Reps</label>
+              <Input
+                type="number"
+                value={reps}
+                onChange={(e) => setReps(Number(e.target.value))}
+                className="h-9 text-center font-semibold"
+              />
+            </div>
+            <div>
+              <label className="text-[10px] uppercase text-muted-foreground">Weight</label>
+              <Input
+                type="number"
+                value={weight}
+                onChange={(e) => setWeight(Number(e.target.value))}
+                className="h-9 text-center font-semibold"
+              />
+            </div>
+          </div>
+        )}
+
+        <Button
+          className="w-full gap-1.5"
+          disabled={selectedExercises.length === 0 || importing}
+          onClick={handleAdd}
+        >
+          <Upload className="h-4 w-4" />
+          {importing ? "Adding..." : `Add ${selectedExercises.length} Exercise${selectedExercises.length > 1 ? "s" : ""}`}
+        </Button>
+      </CardContent>
+    </Card>
   );
 }

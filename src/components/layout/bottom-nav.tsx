@@ -1,11 +1,12 @@
 "use client";
 import { useAppStore, type AppView } from "@/lib/store/app-store";
 import { cn } from "@/lib/utils";
-import { CalendarDays, Dumbbell, Settings } from "lucide-react";
+import { CalendarDays, Dumbbell, Settings, BarChart3 } from "lucide-react";
 
 const NAV_ITEMS: Array<{ view: AppView; label: string; icon: typeof CalendarDays }> = [
   { view: "week", label: "Routine", icon: CalendarDays },
   { view: "active_workout", label: "Workout", icon: Dumbbell },
+  { view: "analytics", label: "Stats", icon: BarChart3 },
   { view: "settings", label: "Profile", icon: Settings },
 ];
 
@@ -18,14 +19,13 @@ export function BottomNav() {
   const view = useAppStore((s) => s.view);
   const setView = useAppStore((s) => s.setView);
 
-  // Treat sub-views (ai_gateway, analytics, biometrics, day_batch_edit,
-  // active_session) as belonging to their parent tab for highlight purposes
+  // Treat sub-views as belonging to their parent tab for highlight purposes
   const activeTab: AppView =
     view === "day_batch_edit"
       ? "week"
       : view === "active_session"
       ? "active_workout"
-      : view === "ai_gateway" || view === "analytics" || view === "biometrics"
+      : view === "ai_gateway" || view === "biometrics"
       ? "settings"
       : view;
 

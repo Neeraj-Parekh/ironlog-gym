@@ -99,9 +99,24 @@ export function RpeNotesSheet({
   );
 }
 
-/** Previous session reference card */
-export function PreviousSessionCard({ data }: { data: PreviousSessionData | null }) {
+/** Previous session reference card with delta vs current input */
+export function PreviousSessionCard({
+  data,
+  currentWeight,
+  currentReps,
+}: {
+  data: PreviousSessionData | null;
+  currentWeight?: number;
+  currentReps?: number;
+}) {
   if (!data) return null;
+
+  // Calculate deltas
+  const weightDelta =
+    currentWeight !== undefined && currentWeight > 0
+      ? currentWeight - data.bestWeight
+      : 0;
+  const showDelta = currentWeight !== undefined && currentWeight > 0 && weightDelta !== 0;
 
   return (
     <div className="mb-3 rounded-lg border border-sky-500/30 bg-sky-500/5 p-2.5">
@@ -117,6 +132,16 @@ export function PreviousSessionCard({ data }: { data: PreviousSessionData | null
           <p className="text-sm font-bold">
             {data.bestWeight}kg × {data.bestReps}
           </p>
+          {showDelta && (
+            <p
+              className={cn(
+                "text-[10px] font-bold mt-0.5",
+                weightDelta > 0 ? "text-emerald-500" : "text-rose-500"
+              )}
+            >
+              {weightDelta > 0 ? "↑" : "↓"} {Math.abs(weightDelta)}kg
+            </p>
+          )}
         </div>
         <div>
           <p className="text-[9px] uppercase text-muted-foreground">Est 1RM</p>

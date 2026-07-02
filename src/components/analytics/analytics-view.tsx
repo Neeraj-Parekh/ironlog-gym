@@ -9,9 +9,11 @@ import {
   type ExerciseTrendPoint,
 } from "@/lib/analytics";
 import { deleteSession } from "@/lib/session-helpers";
+import { useAppStore } from "@/lib/store/app-store";
 import { AchievementsPanel } from "./achievements-panel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { CardSkeleton, EmptyState } from "@/components/shared/empty-state";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -64,43 +66,60 @@ export function AnalyticsView() {
   const loggedExercises = useLoggedExercises();
   const [selectedExerciseId, setSelectedExerciseId] = useState<string>("");
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [historyLimit, setHistoryLimit] = useState(10); // pagination
 
   const handleDeleteSession = async () => {
     if (!deleteTarget) return;
+    // Find the session + sets to allow undo
+    const targetData = sessions.find((s) => s.session.id === deleteTarget);
+    if (!targetData) return;
+
+    // Delete immediately
     try {
       await deleteSession(deleteTarget);
-      toast.success("Session deleted");
       setDeleteTarget(null);
       reload();
+      // Show undo toast
+      toast("Session deleted", {
+        duration: 5000,
+        action: {
+          label: "Undo",
+          onClick: async () => {
+            try {
+              const db = (await import("@/lib/dexie")).getDB();
+              await db.transaction("rw", [db.sessions, db.session_sets], async () => {
+                await db.sessions.put(targetData.session);
+                if (targetData.sets.length > 0) {
+                  await db.session_sets.bulkPut(targetData.sets);
+                }
+              });
+              reload();
+              toast.success("Session restored");
+            } catch {
+              toast.error("Could not restore");
+            }
+          },
+        },
+      });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Delete failed");
     }
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20 text-muted-foreground">
-        Loading analytics...
-      </div>
-    );
+    return <CardSkeleton count={4} />;
   }
 
   if (sessions.length === 0) {
     return (
       <div className="px-4 py-4 pb-24">
-        <Card>
-          <CardContent className="pt-6 pb-6 text-center">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-muted mx-auto mb-3">
-              <BarChart3 className="h-8 w-8 text-muted-foreground" />
-            </div>
-            <h2 className="font-bold text-lg mb-1">No Sessions Yet</h2>
-            <p className="text-sm text-muted-foreground max-w-xs mx-auto">
-              Complete a workout from the Workout tab to start building your
-              analytics. Volume trends, 1RM estimates, and progressive overload
-              velocity will appear here.
-            </p>
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={BarChart3}
+          title="No Sessions Yet"
+          description="Complete a workout to start building analytics. Volume trends, 1RM estimates, and progressive overload velocity will appear here."
+          actionLabel="Start a Workout"
+          onAction={() => useAppStore.getState().setView("active_workout")}
+        />
       </div>
     );
   }
@@ -351,7 +370,7 @@ export function AnalyticsView() {
           {/* Achievements at top of history */}
           <AchievementsPanel />
 
-          {sessions.map(({ session, sets }) => {
+          {sessions.slice(0, historyLimit).map(({ session, sets }) => {
             const summary = summarizeSession(session, sets);
             return (
               <Card key={session.id}>
@@ -416,6 +435,15 @@ export function AnalyticsView() {
               </Card>
             );
           })}
+          {sessions.length > historyLimit && (
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => setHistoryLimit(historyLimit + 10)}
+            >
+              Load More ({sessions.length - historyLimit} remaining)
+            </Button>
+          )}
         </TabsContent>
       </Tabs>
 

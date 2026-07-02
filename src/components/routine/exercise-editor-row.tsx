@@ -59,12 +59,20 @@ export function ExerciseEditorRow({
   onDelete,
 }: ExerciseEditorRowProps) {
   const [mode, setMode] = useState<EditMode>(0);
-  const hasOverrides =
-    node.sets_override && node.sets_override.length > 0;
+  const [showTooltip, setShowTooltip] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return !localStorage.getItem("ironlog-edit-tooltip-seen");
+  });
 
   const cycleMode = () => {
     setMode((m) => ((m + 1) % 3) as EditMode);
+    if (showTooltip) {
+      setShowTooltip(false);
+      localStorage.setItem("ironlog-edit-tooltip-seen", "true");
+    }
   };
+  const hasOverrides =
+    node.sets_override && node.sets_override.length > 0;
 
   const toggleOverrides = (checked: boolean) => {
     if (checked) {
@@ -159,20 +167,31 @@ export function ExerciseEditorRow({
         </div>
 
         {/* 3-state mode button */}
-        <button
-          onClick={cycleMode}
-          className={cn(
-            "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-all",
-            modeStyle.bg,
-            modeStyle.ring
+        <div className="relative shrink-0">
+          <button
+            onClick={cycleMode}
+            className={cn(
+              "flex h-8 w-8 items-center justify-center rounded-lg transition-all",
+              modeStyle.bg,
+              modeStyle.ring
+            )}
+            aria-label={`Edit mode: ${modeStyle.label}`}
+            title={`Edit mode: ${modeStyle.label} (tap to cycle)`}
+          >
+            {mode === 0 && <Settings2 className="h-4 w-4" />}
+            {mode === 1 && <Settings2 className="h-4 w-4" />}
+            {mode === 2 && <Pencil className="h-4 w-4" />}
+          </button>
+          {showTooltip && (
+            <div className="absolute right-0 top-10 z-20 w-44 rounded-lg bg-foreground px-3 py-2 text-xs text-background shadow-xl">
+              <p className="font-medium mb-0.5">Tap to edit</p>
+              <p className="opacity-80">
+                Cycles: View → Tune (sets/reps) → Edit (rename/remove)
+              </p>
+              <div className="absolute -top-1 right-3 h-2 w-2 rotate-45 bg-foreground" />
+            </div>
           )}
-          aria-label={`Edit mode: ${modeStyle.label}`}
-          title={`Edit mode: ${modeStyle.label} (tap to cycle)`}
-        >
-          {mode === 0 && <Settings2 className="h-4 w-4" />}
-          {mode === 1 && <Settings2 className="h-4 w-4" />}
-          {mode === 2 && <Pencil className="h-4 w-4" />}
-        </button>
+        </div>
       </div>
 
       {/* Mode 0: read-only summary */}

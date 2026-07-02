@@ -204,7 +204,9 @@ export interface VitalityInsight {
   type: "positive" | "negative" | "neutral";
 }
 
-export function useVitalityInsights(): {
+export function useVitalityInsights(
+  vitalityLogCount: number = 0
+): {
   insights: VitalityInsight[];
   loading: boolean;
 } {
@@ -338,7 +340,7 @@ export function useVitalityInsights(): {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [vitalityLogCount]); // recompute when vitality log count changes
 
   return { insights, loading };
 }
