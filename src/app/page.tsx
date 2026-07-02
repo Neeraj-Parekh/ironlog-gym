@@ -25,11 +25,18 @@ export default function Home() {
   const view = useAppStore((s) => s.view);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Check auth on initial render (no effect needed)
-  const [authed, setAuthed] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return localStorage.getItem(AUTH_KEY) === "true";
-  });
+  // Start unauthenticated on both server and client (avoids hydration mismatch)
+  const [authed, setAuthed] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  // Check auth on mount (client only)
+  useEffect(() => {
+    setMounted(true);
+    const stored = localStorage.getItem(AUTH_KEY);
+    if (stored === "true") {
+      setAuthed(true);
+    }
+  }, []);
 
   // Seed database only after authed
   useEffect(() => {
@@ -45,6 +52,15 @@ export default function Home() {
       }
     })();
   }, [authed]);
+
+  // ---- Loading state (server + first client render match) ----
+  if (!mounted) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-3">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   // ---- Auth gate ----
   if (!authed) {
