@@ -70,6 +70,7 @@ interface ActiveSessionState {
   swapToFallback: (fallbackNode: RoutineNode) => void;
   skipCurrent: () => void;
   goToNext: () => void;
+  goToPrev: () => void;
   updateQueueItem: (nodeId: string, patch: Partial<RoutineNode>) => void;
   addExerciseToQueue: (node: RoutineNode) => void;
   // Rest timer
@@ -193,6 +194,14 @@ export const useActiveSessionStore = create<ActiveSessionState>((set, get) => ({
     const { currentIndex, queue } = get();
     set({
       currentIndex: Math.min(currentIndex + 1, queue.length),
+      restTimer: initialRestTimer,
+    });
+  },
+
+  goToPrev: () => {
+    const { currentIndex } = get();
+    set({
+      currentIndex: Math.max(0, currentIndex - 1),
       restTimer: initialRestTimer,
     });
   },

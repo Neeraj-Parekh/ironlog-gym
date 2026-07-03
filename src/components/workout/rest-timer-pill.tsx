@@ -156,6 +156,16 @@ export function RestTimerPill() {
                   onClick={() => {
                     stopRest();
                     clearRestCompleted();
+                    // Auto-advance to next exercise if on last set
+                    const { currentIndex, queue, loggedSets } = useActiveSessionStore.getState();
+                    const currentNode = queue[currentIndex];
+                    if (currentNode) {
+                      const setsForCurrent = loggedSets.filter((s) => s.node_id === currentNode.id);
+                      const targetSetCount = currentNode.sets_count ?? 3;
+                      if (setsForCurrent.length >= targetSetCount) {
+                        useActiveSessionStore.getState().goToNext();
+                      }
+                    }
                   }}
                 >
                   Done

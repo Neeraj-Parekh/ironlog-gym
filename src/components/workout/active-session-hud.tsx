@@ -89,6 +89,7 @@ export function ActiveSessionHUD() {
     swapToFallback,
     skipCurrent,
     goToNext,
+    goToPrev,
     startRest,
     stopRest,
   } = useActiveSessionStore();
@@ -226,10 +227,15 @@ export function ActiveSessionHUD() {
     // Reset RPE/notes for next set
     setRpe(null);
     setNotes("");
+    setShowNextExercise(false);
 
-    // Auto-advance if last set
+    // Auto-advance if last set — but wait for rest timer to finish
     if (isLastSet) {
-      setTimeout(() => goToNext(), 400);
+      // If auto-start rest is on, wait for it; otherwise advance after short delay
+      if (!autoStartRest) {
+        setTimeout(() => goToNext(), 400);
+      }
+      // If autoStartRest is on, the rest timer started — user can tap "Skip Rest" to advance
     }
   };
 
@@ -461,18 +467,79 @@ export function ActiveSessionHUD() {
         <>
           {/* ---- Current exercise card (THE BIG CARD) ---- */}
           <div className="flex-1 flex flex-col">
-            {/* Exercise index badge */}
+            {/* Exercise index badge + nav */}
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-muted-foreground uppercase tracking-wide">
-                Exercise {currentIndex + 1} of {totalExercises}
-              </span>
+              <div className="flex items-center gap-2">
+                {/* Previous exercise button */}
+                {currentIndex > 0 && (
+                  <button
+                    onClick={() => {
+                      haptic("light");
+                      useActiveSessionStore.getState().goToPrev();
+                    }}
+                    className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-muted-foreground hover:text-foreground active:scale-95"
+                    title="Previous exercise"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </button>
+                )}
+                <span className="text-xs text-muted-foreground uppercase tracking-wide">
+                  Exercise {currentIndex + 1} of {totalExercises}
+                </span>
+              </div>
               {currentNode.id.includes("_fb_") && (
                 <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 text-amber-700 px-2 py-0.5 text-[10px] font-semibold uppercase">
                   <Zap className="h-3 w-3" />
                   Fallback
                 </span>
               )}
+              {/* Next exercise peek */}
+              {currentIndex + 1 < queue.length && (
+                <button
+                  onClick={() => {
+                    haptic("light");
+                    setShowNextExercise(!showNextExercise);
+                  }}
+                  className="flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground hover:text-foreground transition-colors ml-auto"
+                >
+                  <Eye className="h-3 w-3" />
+                  Next: {queue[currentIndex + 1]?.name}
+                </button>
+              )}
             </div>
+
+            {/* Next exercise preview (expandable) */}
+            {showNextExercise && currentIndex + 1 < queue.length && (
+              <div className="mb-3 rounded-lg border border-violet-500/30 bg-violet-500/5 p-2.5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase text-violet-600 dark:text-violet-400 mb-0.5">
+                      Up Next
+                    </p>
+                    <p className="text-sm font-bold">{queue[currentIndex + 1]?.name}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <VisualTagBadge type={queue[currentIndex + 1]?.exercise_type ?? "non-machine"} />
+                      <span className="text-xs text-muted-foreground">
+                        {queue[currentIndex + 1]?.sets_count ?? 3} sets × {queue[currentIndex + 1]?.target_reps_default ?? 10} reps
+                      </span>
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs gap-1 shrink-0"
+                    onClick={() => {
+                      haptic("light");
+                      setShowNextExercise(false);
+                      goToNext();
+                    }}
+                  >
+                    Skip to it
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
+            )}
 
             {/* Name + tag */}
             <h1 className="text-2xl font-bold leading-tight mb-2">
