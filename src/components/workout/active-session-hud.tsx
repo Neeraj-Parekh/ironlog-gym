@@ -1,10 +1,11 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
 import type { SetInputsRef } from "./set-inputs";
+import type { Equipment, Exercise, RoutineNode } from "@/lib/types";
 import { useAppStore } from "@/lib/store/app-store";
 import { useActiveSessionStore } from "@/lib/store/active-session-store";
 import { useSettingsStore } from "@/lib/store/settings-store";
-import { useEquipment } from "@/hooks/use-routine";
+import { useEquipment, useExercises } from "@/hooks/use-routine";
 import { useWakeLock } from "@/hooks/use-wake-lock";
 import { usePreviousSession, useWorkoutTimer } from "@/hooks/use-previous-session";
 import { getProgressionSuggestion } from "@/lib/progression";
@@ -29,6 +30,13 @@ import {
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -86,6 +94,7 @@ export function ActiveSessionHUD() {
   } = useActiveSessionStore();
   const { autoStartRest, defaultRestSeconds, showProgressionSuggestions, showWarmupCalc } = useSettingsStore();
   const { equipment } = useEquipment();
+  const { exercises } = useExercises();
   const setView = useAppStore((s) => s.setView);
 
   // Ref-based input sync — SetInputs writes weight/reps here on every change.
@@ -112,6 +121,10 @@ export function ActiveSessionHUD() {
   const [cardioMachine, setCardioMachine] = useState("");
   const [cardioDuration, setCardioDuration] = useState("");
   const [cardioDistance, setCardioDistance] = useState("");
+  // Next exercise preview + equipment picker + add exercise
+  const [showNextExercise, setShowNextExercise] = useState(false);
+  const [showEquipmentPicker, setShowEquipmentPicker] = useState(false);
+  const [showAddExercise, setShowAddExercise] = useState(false);
 
   // Reset inputs when current node changes — use a keyed child component
   // to avoid setState-in-effect lint rule
@@ -224,7 +237,7 @@ export function ActiveSessionHUD() {
   const handleStationBusy = async () => {
     if (!currentNode) return;
     haptic("medium");
-    markStationBusy(currentNode.id);
+    // Don't permanently mark busy — just resolve the fallback
     const resolution = await resolveFallback(currentNode, busyNodeIds);
     if (resolution.kind === "available") {
       setFallbackPreview({
@@ -689,6 +702,45 @@ export function ActiveSessionHUD() {
               </Button>
             </div>
 
+            {/* Tertiary actions: Add set, change equipment, add exercise */}
+            <div className="flex items-center gap-2 pt-1 flex-wrap">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 text-xs gap-1"
+                onClick={() => {
+                  haptic("light");
+                  // Add an extra set by increasing targetSetCount
+                  if (currentNode) {
+                    const newCount = (currentNode.sets_count ?? 3) + 1;
+                    useActiveSessionStore.getState().updateQueueItem(currentNode.id, { sets_count: newCount });
+                  }
+                  toast.success(`Added extra set — now ${targetSetCount + 1} sets`);
+                }}
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Add Set
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 text-xs gap-1"
+                onClick={() => setShowEquipmentPicker(true)}
+              >
+                <Dumbbell className="h-3.5 w-3.5" />
+                Change Equipment
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 text-xs gap-1"
+                onClick={() => setShowAddExercise(true)}
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Add Exercise
+              </Button>
+            </div>
+
             {/* Manual rest timer controls */}
             <div className="flex items-center gap-2 pt-1">
               <Clock className="h-4 w-4 text-muted-foreground" />
@@ -763,6 +815,202 @@ export function ActiveSessionHUD() {
 
       {/* Rest timer pill (floating) */}
       <RestTimerPill />
+
+      {/* Equipment picker dialog */}
+      {showEquipmentPicker && currentNode && (
+        <EquipmentPicker
+          currentNode={currentNode}
+          equipment={equipment}
+          onChange={(newType, newId) => {
+            useActiveSessionStore.getState().updateQueueItem(currentNode.id, {
+              equipment_source: { type: newType, preferred_id: newId },
+            });
+            haptic("success");
+            toast.success("Equipment changed");
+            setShowEquipmentPicker(false);
+          }}
+          onClose={() => setShowEquipmentPicker(false)}
+        />
+      )}
+
+      {/* Add exercise to queue dialog */}
+      {showAddExercise && (
+        <AddExerciseToQueue
+          exercises={exercises}
+          onAdd={(ex) => {
+            const newNode: RoutineNode = {
+              id: `extra_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+              version_id: session.version_id,
+              day_of_week: session.day_of_week,
+              block_type: "exercise",
+              sequence_order: 999,
+              exercise_id: ex.id,
+              name: ex.name,
+              exercise_type: ex.exercise_type,
+              is_fixed: false,
+              sets_count: 3,
+              target_reps_default: 10,
+              prescribed_rest_seconds: 120,
+              sets_override: [],
+              fallback_ids: ex.fallback_ids,
+              equipment_source: { type: ex.equipment_id === "none_bodyweight" ? "bodyweight" : "barbell" },
+            } as RoutineNode;
+            useActiveSessionStore.getState().addExerciseToQueue(newNode);
+            haptic("success");
+            toast.success(`${ex.name} added to end of workout`);
+            setShowAddExercise(false);
+          }}
+          onClose={() => setShowAddExercise(false)}
+        />
+      )}
     </div>
+  );
+}
+
+// ---- Equipment Picker ----
+function EquipmentPicker({
+  currentNode,
+  equipment,
+  onChange,
+  onClose,
+}: {
+  currentNode: RoutineNode;
+  equipment: Equipment[];
+  onChange: (type: "barbell" | "dumbbell" | "machine" | "bodyweight", preferredId?: string) => void;
+  onClose: () => void;
+}) {
+  const currentType = currentNode.equipment_source?.type ?? "barbell";
+  const barbells = equipment.filter((e) => e.kind === "barbell");
+  const machines = equipment.filter((e) => e.kind === "machine");
+  const [selectedType, setSelectedType] = useState(currentType);
+  const [selectedId, setSelectedId] = useState(currentNode.equipment_source?.preferred_id);
+
+  return (
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Dumbbell className="h-4 w-4" />
+            Change Equipment
+          </DialogTitle>
+          <DialogDescription>
+            Switch between barbell, dumbbell, or machine for this exercise.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          {/* Equipment type */}
+          <div className="grid grid-cols-4 gap-1">
+            {(["barbell", "dumbbell", "machine", "bodyweight"] as const).map((t) => (
+              <button
+                key={t}
+                onClick={() => {
+                  setSelectedType(t);
+                  if (t === "bodyweight") setSelectedId("none_bodyweight");
+                  else if (t === "dumbbell") setSelectedId("dumbbell_set_01");
+                  else if (t === "barbell") setSelectedId("bar_std_20");
+                }}
+                className={cn(
+                  "h-9 rounded-lg border-2 text-xs font-medium capitalize transition-all active:scale-95",
+                  selectedType === t
+                    ? "border-foreground bg-accent"
+                    : "border-border"
+                )}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
+
+          {/* Specific equipment selector */}
+          {selectedType === "barbell" && (
+            <div className="space-y-1">
+              {barbells.map((b) => b.kind === "barbell" && (
+                <button
+                  key={b.id}
+                  onClick={() => setSelectedId(b.id)}
+                  className={cn(
+                    "w-full flex items-center justify-between rounded-lg border p-2 text-left text-sm active:scale-95",
+                    selectedId === b.id ? "border-foreground bg-accent" : "border-border"
+                  )}
+                >
+                  <span>{b.name}</span>
+                  <span className="text-xs text-muted-foreground">{b.weight_kg}kg</span>
+                </button>
+              ))}
+            </div>
+          )}
+          {selectedType === "machine" && (
+            <div className="space-y-1 max-h-48 overflow-y-auto">
+              {machines.map((m) => m.kind === "machine" && (
+                <button
+                  key={m.id}
+                  onClick={() => setSelectedId(m.id)}
+                  className={cn(
+                    "w-full flex items-center justify-between rounded-lg border p-2 text-left text-sm active:scale-95",
+                    selectedId === m.id ? "border-foreground bg-accent" : "border-border"
+                  )}
+                >
+                  <span>{m.name}</span>
+                </button>
+              ))}
+            </div>
+          )}
+
+          <Button
+            className="w-full"
+            onClick={() => onChange(selectedType, selectedId)}
+          >
+            Apply
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ---- Add Exercise to Queue ----
+function AddExerciseToQueue({
+  exercises,
+  onAdd,
+  onClose,
+}: {
+  exercises: Exercise[];
+  onAdd: (ex: Exercise) => void;
+  onClose: () => void;
+}) {
+  const [search, setSearch] = useState("");
+  const filtered = exercises.filter((e) =>
+    e.name.toLowerCase().includes(search.toLowerCase())
+  );
+
+  return (
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent className="max-w-md max-h-[80vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle>Add Exercise to Workout</DialogTitle>
+          <DialogDescription>
+            Adds to the end of your current workout queue.
+          </DialogDescription>
+        </DialogHeader>
+        <Input
+          placeholder="Search exercises..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="h-9"
+        />
+        <div className="flex-1 overflow-y-auto space-y-1 max-h-60">
+          {filtered.slice(0, 20).map((ex) => (
+            <button
+              key={ex.id}
+              onClick={() => onAdd(ex)}
+              className="w-full flex items-center gap-2 rounded-lg border p-2 text-left hover:bg-accent/50 active:scale-95 transition-all"
+            >
+              <span className="text-sm font-medium flex-1">{ex.name}</span>
+              <span className="text-xs text-muted-foreground capitalize">{ex.target_muscle}</span>
+            </button>
+          ))}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }

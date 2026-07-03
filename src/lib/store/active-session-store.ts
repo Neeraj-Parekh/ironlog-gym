@@ -70,6 +70,8 @@ interface ActiveSessionState {
   swapToFallback: (fallbackNode: RoutineNode) => void;
   skipCurrent: () => void;
   goToNext: () => void;
+  updateQueueItem: (nodeId: string, patch: Partial<RoutineNode>) => void;
+  addExerciseToQueue: (node: RoutineNode) => void;
   // Rest timer
   startRest: (seconds: number) => void;
   adjustRest: (deltaSeconds: number) => void;
@@ -171,9 +173,15 @@ export const useActiveSessionStore = create<ActiveSessionState>((set, get) => ({
   swapToFallback: (fallbackNode) => {
     const { queue, currentIndex } = get();
     if (currentIndex >= queue.length) return;
-    // Replace current node with fallback, keep the same position
+    // Replace current node with fallback at same position,
+    // AND push the original exercise to end of queue (so you come back to it)
+    const original = queue[currentIndex];
     const newQueue = [...queue];
     newQueue[currentIndex] = fallbackNode;
+    // Only add original to end if it's not already there
+    if (!newQueue.some((n) => n.id === original.id && n.id !== fallbackNode.id)) {
+      newQueue.push(original);
+    }
     set({ queue: newQueue });
   },
 
@@ -187,6 +195,19 @@ export const useActiveSessionStore = create<ActiveSessionState>((set, get) => ({
       currentIndex: Math.min(currentIndex + 1, queue.length),
       restTimer: initialRestTimer,
     });
+  },
+
+  updateQueueItem: (nodeId, patch) => {
+    const { queue } = get();
+    const newQueue = queue.map((n) =>
+      n.id === nodeId ? { ...n, ...patch } : n
+    );
+    set({ queue: newQueue });
+  },
+
+  addExerciseToQueue: (node) => {
+    const { queue } = get();
+    set({ queue: [...queue, node] });
   },
 
   startRest: (seconds) => {

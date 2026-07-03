@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAppStore } from "@/lib/store/app-store";
 import { useActiveSessionStore } from "@/lib/store/active-session-store";
 import {
@@ -24,6 +24,14 @@ export function ActiveWorkoutView() {
   const { nodes } = useRoutineNodes(version?.id);
   const { labels } = useDayLabels(version?.id);
   const [starting, setStarting] = useState<DayOfWeek | null>(null);
+  const activeSession = useActiveSessionStore((s) => s.session);
+
+  // If there's an active session, redirect to it
+  useEffect(() => {
+    if (activeSession) {
+      setView("active_session");
+    }
+  }, [activeSession, setView]);
 
   const today = new Date().getDay() as DayOfWeek;
   const todayNodes = nodes.filter((n) => n.day_of_week === today);
