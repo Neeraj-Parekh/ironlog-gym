@@ -952,7 +952,7 @@ function EquipmentPicker({
   onChange: (type: "barbell" | "dumbbell" | "machine" | "bodyweight", preferredId?: string) => void;
   onClose: () => void;
 }) {
-  const currentType = currentNode.equipment_source?.type ?? "barbell";
+  const currentType = (currentNode.equipment_source?.type === "plate" ? "barbell" : currentNode.equipment_source?.type) ?? "barbell";
   const barbells = equipment.filter((e) => e.kind === "barbell");
   const machines = equipment.filter((e) => e.kind === "machine");
   const [selectedType, setSelectedType] = useState(currentType);
