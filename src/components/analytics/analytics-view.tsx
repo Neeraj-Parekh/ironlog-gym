@@ -8,6 +8,7 @@ import {
   estimate1RM,
   type ExerciseTrendPoint,
 } from "@/lib/analytics";
+import type { Session, SessionSet } from "@/lib/types";
 import { deleteSession } from "@/lib/session-helpers";
 import { useAppStore } from "@/lib/store/app-store";
 import { AchievementsPanel } from "./achievements-panel";
