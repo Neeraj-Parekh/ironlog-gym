@@ -61,6 +61,7 @@ export function ExerciseEditorRow({
   const [mode, setMode] = useState<EditMode>(0);
   const [showTooltip, setShowTooltip] = useState(() => {
     if (typeof window === "undefined") return false;
+    if (index !== 1) return false; // only first exercise
     return !localStorage.getItem("ironlog-edit-tooltip-seen");
   });
 

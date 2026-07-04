@@ -57,7 +57,7 @@ import {
   duplicateDay,
   applyDeloadWeek,
 } from "@/lib/session-helpers";
-import { Lock, Plus, Save, ArrowLeft, Trash2, Copy, TrendingDown, GripVertical } from "lucide-react";
+import { Lock, Plus, Save, ArrowLeft, Trash2, Copy, TrendingDown, GripVertical, Pencil, Check } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -129,6 +129,108 @@ function SortableExerciseRow({
   );
 }
 
+// ---- Expandable fixed block card (shows exercises inside) ----
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { ChevronDown, Clock } from "lucide-react";
+
+function FixedBlockCard({ block }: { block: RoutineNode }) {
+  const [expanded, setExpanded] = useState(false);
+  const isStretch = block.exercise_type === "stretching";
+  const isCardio = block.exercise_type === "cardio";
+
+  const exercises: string[] = [];
+  if (isStretch) {
+    exercises.push("Neck mobility (up/down/left/right × 6)");
+    exercises.push("Arm circles forward/backward × 10");
+    exercises.push("Shoulder rolls forward/backward × 10");
+    exercises.push("Chest opener (hold 10-15s × 2)");
+    exercises.push("Cross body shoulder stretch (15s each side)");
+    exercises.push("Triceps stretch (15s each side)");
+    exercises.push("Wrist mobility (10 each direction)");
+    exercises.push("Standing side bends (10 each side)");
+    exercises.push("Torso rotations (10 each direction)");
+    exercises.push("Forward bend (hold 10s × 2)");
+    exercises.push("Hip circles (10 clockwise, 10 anticlockwise)");
+    exercises.push("Leg swings forward/back (10 each leg)");
+    exercises.push("Leg swings side/side (10 each leg)");
+    exercises.push("Knee circles (10 each direction)");
+    exercises.push("Ankle circles (10 each direction)");
+    exercises.push("Bodyweight squats × 15");
+    exercises.push("Walking lunges (10 each leg)");
+    exercises.push("High knees (20-30 sec)");
+    exercises.push("Butt kicks (20-30 sec)");
+  }
+  if (isCardio) {
+    exercises.push("Treadmill — 20-25 min (5-6.5 km/h)");
+    exercises.push("Exercise Bike — 20 min");
+    exercises.push("Elliptical — 20 min");
+    exercises.push("Stairmaster — 15-20 min");
+    exercises.push("Chest stretch (wall, 20-30s)");
+    exercises.push("Shoulder stretch (cross-body, 20-30s)");
+    exercises.push("Triceps stretch (behind head, 20-30s)");
+    exercises.push("Lat stretch (overhead lean, 20-30s)");
+    exercises.push("Hamstring stretch (toe touch, 20-30s)");
+    exercises.push("Quadriceps stretch (hold ankle, 20-30s)");
+    exercises.push("Calf stretch (against wall, 20-30s)");
+    exercises.push("Hip flexor stretch (lunge position, 20-30s)");
+    exercises.push("Glute stretch (figure-4, 20-30s)");
+    exercises.push("Butterfly stretch (feet together, 20-30s)");
+    exercises.push("Child's pose (30s)");
+    exercises.push("Cobra stretch (20s)");
+    exercises.push("Cat-cow stretch (8-10 reps)");
+  }
+
+  return (
+    <Collapsible
+      open={expanded}
+      onOpenChange={setExpanded}
+      className="rounded-xl border border-dashed bg-muted/30 overflow-hidden"
+    >
+      <CollapsibleTrigger asChild>
+        <button className="w-full flex items-center gap-2 p-3 text-left hover:bg-muted/50 transition-colors active:scale-[0.98]">
+          <Lock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+          <VisualTagBadge type={block.exercise_type} />
+          <span className="text-sm font-medium flex-1 truncate">
+            {block.name}
+          </span>
+          <span className="text-xs text-muted-foreground flex items-center gap-1 shrink-0">
+            <Clock className="h-3 w-3" />
+            {block.duration_minutes} min
+          </span>
+          <ChevronDown
+            className={cn(
+              "h-4 w-4 text-muted-foreground shrink-0 transition-transform",
+              expanded && "rotate-180"
+            )}
+          />
+        </button>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <div className="border-t bg-background/50 p-3 space-y-1.5">
+          <p className="text-[10px] font-semibold uppercase text-muted-foreground mb-2">
+            {isStretch ? "Warm-up Exercises" : "Cardio + Post-Workout Stretches"}
+          </p>
+          {exercises.map((ex, i) => (
+            <div
+              key={i}
+              className="flex items-center gap-2 rounded-lg bg-muted/30 px-2 py-1.5"
+            >
+              <span className="text-[10px] font-bold text-muted-foreground w-5 shrink-0">
+                {i + 1}
+              </span>
+              <span className="text-xs">{ex}</span>
+            </div>
+          ))}
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}
+
 export function DayBatchEditor() {
   const { version, loading: vLoading } = useActiveVersion();
   const selectedDay = useAppStore((s) => s.selectedDay);
@@ -144,6 +246,7 @@ export function DayBatchEditor() {
   const [showAdd, setShowAdd] = useState(false);
   const [showDuplicate, setShowDuplicate] = useState(false);
   const [duplicateTarget, setDuplicateTarget] = useState<string>("");
+  const [editingLabel, setEditingLabel] = useState(false);
   const { exercises } = useExercises();
 
   // DnD sensors
@@ -419,53 +522,51 @@ export function DayBatchEditor() {
         </Button>
       </div>
 
-      {/* Day header */}
+      {/* Day header — read-only by default, tap pencil to edit */}
       <div className="mb-4">
-        <Label className="text-xs text-muted-foreground">Editing</Label>
-        <Input
-          value={dayLabel}
-          onChange={(e) => {
-            setDayLabel(e.target.value);
-            setDirty(true);
-          }}
-          className="mt-1 h-12 text-lg font-bold"
-          placeholder={`${DAY_NAMES[selectedDay]} routine`}
-        />
+        <div className="flex items-center gap-2">
+          {editingLabel ? (
+            <>
+              <Input
+                value={dayLabel}
+                onChange={(e) => {
+                  setDayLabel(e.target.value);
+                  setDirty(true);
+                }}
+                className="h-12 text-lg font-bold"
+                placeholder={`${DAY_NAMES[selectedDay]} routine`}
+                autoFocus
+              />
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-9 w-9 p-0 shrink-0"
+                onClick={() => setEditingLabel(false)}
+              >
+                <Check className="h-4 w-4" />
+              </Button>
+            </>
+          ) : (
+            <>
+              <h2 className="text-lg font-bold flex-1">{dayLabel}</h2>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-9 w-9 p-0 shrink-0"
+                onClick={() => setEditingLabel(true)}
+              >
+                <Pencil className="h-4 w-4" />
+              </Button>
+            </>
+          )}
+        </div>
       </div>
 
-      {/* Fixed blocks (locked) */}
+      {/* Fixed blocks (locked, expandable) */}
       {(preBlock || postBlock) && (
-        <div className="mb-4 rounded-xl border border-dashed bg-muted/30 p-3">
-          <div className="flex items-center gap-1.5 mb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-            <Lock className="h-3.5 w-3.5" />
-            Fixed Recovery Blocks
-          </div>
-          <div className="space-y-2">
-            {preBlock && (
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <VisualTagBadge type="stretching" />
-                  <span className="text-sm font-medium">{preBlock.name}</span>
-                </div>
-                <span className="text-xs text-muted-foreground">
-                  {preBlock.duration_minutes} min
-                </span>
-              </div>
-            )}
-            {postBlock && (
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <VisualTagBadge type="cardio" />
-                  <span className="text-sm font-medium">{postBlock.name}</span>
-                </div>
-                <span className="text-xs text-muted-foreground">
-                  {postBlock.duration_minutes} min
-                  {postBlock.intensity_metrics?.speed_kmh &&
-                    ` · ${postBlock.intensity_metrics.speed_kmh} km/h`}
-                </span>
-              </div>
-            )}
-          </div>
+        <div className="mb-4 space-y-2">
+          {preBlock && <FixedBlockCard block={preBlock} />}
+          {postBlock && <FixedBlockCard block={postBlock} />}
         </div>
       )}
 
