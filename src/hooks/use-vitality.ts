@@ -31,7 +31,7 @@ export function useSessionsNeedingSoreness() {
       const recentSessions = await db.sessions
         .where("status")
         .equals("completed" as never)
-        .filter((s) => s.ended_at && s.ended_at >= cutoff72h && s.ended_at <= cutoff24h)
+        .filter((s) => !!(s.ended_at && s.ended_at >= cutoff72h && s.ended_at <= cutoff24h))
         .toArray();
 
       // Filter out sessions that already have soreness logged
