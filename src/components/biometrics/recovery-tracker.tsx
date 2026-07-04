@@ -13,13 +13,7 @@ import {
 } from "@/components/ui/select";
 import { Moon, Frown, Meh, Smile, Battery, Plus } from "lucide-react";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
-
-function uid(prefix: string): string {
-  return `${prefix}_${Date.now().toString(36)}_${Math.random()
-    .toString(36)
-    .slice(2, 6)}`;
-}
+import { cn, uid } from "@/lib/utils";
 
 export function RecoveryTracker() {
   const [todayLogs, setTodayLogs] = useState<Biometric[]>([]);

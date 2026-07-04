@@ -11,13 +11,8 @@ import {
   updateStreak,
   checkMilestones,
 } from "@/lib/progression";
+import { uid } from "@/lib/utils";
 import { toast } from "sonner";
-
-function uid(prefix: string): string {
-  return `${prefix}_${Date.now().toString(36)}_${Math.random()
-    .toString(36)
-    .slice(2, 6)}`;
-}
 
 /**
  * Create and start a new workout session from a day's routine.
@@ -162,7 +157,13 @@ export async function endAndPersistSession(
     .where("status")
     .equals("completed" as never)
     .toArray();
-  const totalVolume = allSessions.reduce((sum, s) => sum + (s as any).totalVolume ?? 0, 0) + sessionVolume;
+  // Compute total volume from all completed sessions' sets
+  let totalVolume = sessionVolume;
+  for (const s of allSessions) {
+    if (s.id === session.id) continue; // skip current session (already counted)
+    const sSets = await db.session_sets.where("session_id").equals(s.id).toArray();
+    totalVolume += computeTotalVolume(sSets);
+  }
   const newMilestones = await checkMilestones(
     totalVolume,
     allSessions.length,

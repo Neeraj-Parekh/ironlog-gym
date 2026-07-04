@@ -5,12 +5,7 @@
 import { getDB } from "./dexie";
 import { estimate1RM } from "./analytics";
 import type { Session, SessionSet, PersonalRecord, Milestone, StreakRecord } from "./types";
-
-function uid(prefix: string): string {
-  return `${prefix}_${Date.now().toString(36)}_${Math.random()
-    .toString(36)
-    .slice(2, 6)}`;
-}
+import { uid } from "./utils";
 
 // ---- Check & record PRs after a session ----
 export async function checkAndRecordPRs(
@@ -77,9 +72,10 @@ export async function updateStreak(sessionDate: string): Promise<{
   let streakRecord: StreakRecord | undefined = existing[0];
 
   const today = sessionDate;
-  const yesterday = new Date(Date.now() - 86400000)
-    .toISOString()
-    .slice(0, 10);
+  // Use calendar date subtraction to handle DST correctly
+  const now = new Date();
+  const yesterdayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+  const yesterday = yesterdayDate.toISOString().slice(0, 10);
 
   if (!streakRecord) {
     // First ever session

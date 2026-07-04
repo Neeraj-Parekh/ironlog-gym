@@ -2,18 +2,13 @@
 import { useEffect, useState, useCallback } from "react";
 import { getDB } from "@/lib/dexie";
 import { computeVitalityScore } from "@/lib/vitality";
+import { uid } from "@/lib/utils";
 import type {
   SessionSoreness,
   PreWorkoutContext,
   VitalityLog,
   Session,
 } from "@/lib/types";
-
-function uid(prefix: string): string {
-  return `${prefix}_${Date.now().toString(36)}_${Math.random()
-    .toString(36)
-    .slice(2, 6)}`;
-}
 
 // ---- DOMS: Sessions needing soreness check (24-72h post-completion) ----
 export function useSessionsNeedingSoreness() {

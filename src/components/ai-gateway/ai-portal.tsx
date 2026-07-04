@@ -38,6 +38,7 @@ import {
   Upload,
   Sparkles,
 } from "lucide-react";
+import { uid } from "@/lib/utils";
 import { toast } from "sonner";
 import blankSchema from "@/data/blank-schema.json";
 
@@ -50,10 +51,6 @@ const DAYS: { value: DayOfWeek; label: string }[] = [
   { value: 6, label: "Saturday" },
   { value: 0, label: "Sunday" },
 ];
-
-function uid(prefix: string): string {
-  return `${prefix}_${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36)}`;
-}
 
 export function AIPortal() {
   const [pasteText, setPasteText] = useState("");
@@ -79,16 +76,8 @@ export function AIPortal() {
       toast.success("Blank schema copied to clipboard");
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      // Fallback
-      const ta = document.createElement("textarea");
-      ta.value = schemaStr;
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand("copy");
-      document.body.removeChild(ta);
-      setCopied(true);
-      toast.success("Blank schema copied to clipboard");
-      setTimeout(() => setCopied(false), 2000);
+      // Clipboard API may fail in insecure contexts; nothing we can do
+      toast.error("Copy failed — please select and copy manually");
     }
   };
 
@@ -141,7 +130,7 @@ export function AIPortal() {
         let existingEx = exercises.find(
           (e) =>
             e.name.toLowerCase() === node.name.toLowerCase() ||
-            e.id === node.equipment_id
+            e.equipment_id === node.equipment_id
         );
 
         if (!existingEx) {

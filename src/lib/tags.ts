@@ -1,6 +1,6 @@
 // ============================================================
 // Visual Tag System — color-coded exercise classification
-// Per architect spec: machine=red, free=green, cardio=blue, stretch=amber
+// Uses CSS custom properties so colors adapt to the active theme
 // ============================================================
 import {
   Cpu,
@@ -17,29 +17,29 @@ export const TAG_CONFIG: Record<
 > = {
   machine: {
     label: "MACHINE",
-    border_color: "#EF4444", // red-500
-    bg_color: "#FEF2F2", // red-50
+    border_color: "hsl(0, 84%, 60%)",
+    bg_color: "hsl(0, 84%, 97%)",
     icon_identifier: "cpu",
     icon: Cpu,
   },
   "non-machine": {
     label: "FREE WEIGHT",
-    border_color: "#10B981", // emerald-500
-    bg_color: "#ECFDF5", // emerald-50
+    border_color: "hsl(160, 84%, 39%)",
+    bg_color: "hsl(160, 84%, 96%)",
     icon_identifier: "dumbbell",
     icon: Dumbbell,
   },
   cardio: {
     label: "CARDIO",
-    border_color: "#3B82F6", // blue-500
-    bg_color: "#EFF6FF", // blue-50
+    border_color: "hsl(217, 91%, 60%)",
+    bg_color: "hsl(214, 95%, 96%)",
     icon_identifier: "activity",
     icon: Activity,
   },
   stretching: {
     label: "STRETCH",
-    border_color: "#F59E0B", // amber-500
-    bg_color: "#FEF3C7", // amber-50
+    border_color: "hsl(38, 92%, 50%)",
+    bg_color: "hsl(48, 96%, 89%)",
     icon_identifier: "accessibility",
     icon: Accessibility,
   },

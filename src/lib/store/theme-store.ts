@@ -21,7 +21,12 @@ export const useThemeStore = create<ThemeState>()(
       setColorSchema: (s) => set({ colorSchema: s }),
       toggleMode: () => {
         const current = get().mode;
-        const next = current === "dark" ? "light" : "dark";
+        const next =
+          current === "system"
+            ? "light"
+            : current === "light"
+            ? "dark"
+            : "system";
         set({ mode: next });
       },
     }),

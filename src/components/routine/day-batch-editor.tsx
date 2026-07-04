@@ -59,7 +59,7 @@ import {
 } from "@/lib/session-helpers";
 import { Lock, Plus, Save, ArrowLeft, Trash2, Copy, TrendingDown, GripVertical, Pencil, Check } from "lucide-react";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+import { cn, uid } from "@/lib/utils";
 
 const DAY_NAMES = [
   "Sunday",
@@ -70,10 +70,6 @@ const DAY_NAMES = [
   "Friday",
   "Saturday",
 ];
-
-function uid(prefix: string): string {
-  return `${prefix}_${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36)}`;
-}
 
 // ---- Sortable wrapper for ExerciseEditorRow ----
 interface SortableExerciseRowProps {

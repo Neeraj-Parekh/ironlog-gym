@@ -35,14 +35,14 @@
     {
       "name": "Start Workout",
       "short_name": "Workout",
-      "description": "Jump to today's session",
-      "url": "/?view=workout"
+      "description": "Jump to today's workout",
+      "url": "/"
     },
     {
       "name": "Routine",
       "short_name": "Routine",
       "description": "View weekly routine",
-      "url": "/?view=week"
+      "url": "/"
     }
   ],
   "prefer_related_applications": false

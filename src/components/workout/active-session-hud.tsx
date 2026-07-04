@@ -675,9 +675,11 @@ export function ActiveSessionHUD() {
                         variant="outline"
                         size="sm"
                         className="h-6 text-[10px]"
-                        onClick={() =>
-                          setWeight(String(plateResult.nearest_lower_kg))
-                        }
+                        onClick={() => {
+                          const val = plateResult.nearest_lower_kg!;
+                          inputsRef.current.weight = val;
+                          setDisplayWeight(val);
+                        }}
                       >
                         Use {plateResult.nearest_lower_kg}kg
                       </Button>
@@ -687,9 +689,11 @@ export function ActiveSessionHUD() {
                         variant="outline"
                         size="sm"
                         className="h-6 text-[10px]"
-                        onClick={() =>
-                          setWeight(String(plateResult.nearest_higher_kg))
-                        }
+                        onClick={() => {
+                          const val = plateResult.nearest_higher_kg!;
+                          inputsRef.current.weight = val;
+                          setDisplayWeight(val);
+                        }}
                       >
                         Use {plateResult.nearest_higher_kg}kg
                       </Button>

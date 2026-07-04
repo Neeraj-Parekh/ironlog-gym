@@ -51,24 +51,14 @@ export function useWakeLock(active: boolean) {
     }
   }, []);
 
-  // Acquire when `active` becomes true
+  // Acquire when `active` becomes true, release when it becomes false or on unmount
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      if (active) {
-        await acquire();
-      } else {
-        await release();
-      }
-      // Cleanup on unmount or when `active` changes
-      return () => {
-        if (cancelled) return;
-        cancelled = true;
-        release();
-      };
-    })();
+    if (active) {
+      acquire();
+    } else {
+      release();
+    }
     return () => {
-      cancelled = true;
       release();
     };
   }, [active, acquire, release]);

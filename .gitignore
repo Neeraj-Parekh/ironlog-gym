@@ -30,12 +30,13 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
+# env files
+.env
 .env*
+!.env.example
 
 # vercel
 .vercel
-
 
 # typescript
 *.tsbuildinfo
@@ -50,5 +51,12 @@ test
 prompt
 
 server.log
+
+# database files (must not be committed)
+db/*.db
+
 # Skills directory
 /skills/
+
+# upload directory (contains backup tars)
+upload/*.tar

@@ -1,9 +1,10 @@
 // ============================================================
 // Service Worker — offline-first cache for the gym PWA
 // Stale-while-revalidate for app shell, network-first for API
-// Enhanced: pre-caches routes, handles navigation requests
+// Enhanced: pre-caches routes, handles navigation requests,
+// versioned cache to auto-invalidate stale hashed assets
 // ============================================================
-const CACHE_NAME = "ironlog-v2";
+const CACHE_NAME = "ironlog-v3";
 const APP_SHELL = [
   "/",
   "/manifest.webmanifest",
@@ -88,6 +89,28 @@ self.addEventListener("fetch", (event) => {
         } catch {
           const cached = await caches.match(req);
           return cached ?? (await caches.match("/offline.html"));
+        }
+      })()
+    );
+    return;
+  }
+
+  // For hashed static assets (.next/static, JS/CSS chunks) → cache-first
+  // These never change once deployed, so cache-first is safe and fast
+  if (url.pathname.includes("/_next/static/") || url.pathname.match(/\.(js|css|woff2?)$/)) {
+    event.respondWith(
+      (async () => {
+        const cached = await caches.match(req);
+        if (cached) return cached;
+        try {
+          const res = await fetch(req);
+          if (res && res.status === 200) {
+            const cache = await caches.open(CACHE_NAME);
+            cache.put(req, res.clone());
+          }
+          return res;
+        } catch {
+          return new Response("", { status: 408 });
         }
       })()
     );

@@ -26,14 +26,25 @@ export function useSessions() {
         .reverse()
         .sortBy("started_at");
 
-      const result: SessionWithSets[] = [];
-      for (const session of allSessions) {
-        const sets = await db.session_sets
-          .where("session_id")
-          .equals(session.id)
-          .toArray();
-        result.push({ session, sets });
+      // Batch-load all session sets in one query, then group client-side
+      const allSessionIds = allSessions.map((s) => s.id);
+      const allSets = await db.session_sets
+        .where("session_id")
+        .anyOf(allSessionIds)
+        .toArray();
+
+      // Index sets by session_id for O(1) lookup
+      const setsBySession = new Map<string, SessionSet[]>();
+      for (const s of allSets) {
+        const arr = setsBySession.get(s.session_id) ?? [];
+        arr.push(s);
+        setsBySession.set(s.session_id, arr);
       }
+
+      const result: SessionWithSets[] = allSessions.map((session) => ({
+        session,
+        sets: setsBySession.get(session.id) ?? [],
+      }));
 
       if (!cancelled) {
         setSessions(result);

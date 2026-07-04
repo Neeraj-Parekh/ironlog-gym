@@ -15,6 +15,7 @@
 // ============================================================
 import { getDB } from "@/lib/dexie";
 import { TAG_CONFIG } from "@/lib/tags";
+import { uid } from "@/lib/utils";
 import type {
   Biometric,
   Equipment,
@@ -41,17 +42,15 @@ function makeVisualTag(type: ExerciseType) {
   };
 }
 
-function uid(prefix: string): string {
-  return `${prefix}_${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36)}`;
-}
-
-function getISOWeek(): string {
+function getISOWeekString(): string {
   const now = new Date();
-  const year = now.getFullYear();
-  const start = new Date(year, 0, 1);
-  const days = Math.floor((now.getTime() - start.getTime()) / 86400000);
-  const week = Math.ceil((days + start.getDay() + 1) / 7);
-  return `${year}-W${String(week).padStart(2, "0")}`;
+  // ISO week calculation: find the Thursday of the current week
+  const d = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const dayNum = d.getDay() || 7; // Sunday = 7
+  d.setDate(d.getDate() + 4 - dayNum); // Move to Thursday
+  const yearStart = new Date(d.getFullYear(), 0, 1);
+  const weekNum = Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+  return `${d.getFullYear()}-W${String(weekNum).padStart(2, "0")}`;
 }
 
 // Resolve equipment_source from an equipment id.
@@ -761,13 +760,13 @@ export async function seedDatabase(): Promise<void> {
   const existing = await db.routine_versions.count();
   if (existing > 0) return;
 
-  const versionId = `v_${getISOWeek()}_rev1`;
+  const versionId = `v_${getISOWeekString()}_rev1`;
   const now = new Date().toISOString();
 
   const version: RoutineVersion = {
     id: versionId,
     label: "Physc Gym 6-Day Split",
-    effective_week: getISOWeek(),
+    effective_week: getISOWeekString(),
     created_at: now,
     is_active: true,
   };
