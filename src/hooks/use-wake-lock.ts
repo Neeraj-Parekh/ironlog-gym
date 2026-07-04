@@ -1,32 +1,17 @@
 "use client";
 import { useEffect, useState, useCallback, useRef } from "react";
 
-// Minimal type defs for the Screen Wake Lock API (not in standard TS lib yet)
-interface WakeLockSentinel {
-  released: boolean;
-  type: "screen";
-  release(): Promise<void>;
-  addEventListener(
-    type: "release",
-    listener: (this: WakeLockSentinel, ev: Event) => void
-  ): void;
-}
-interface NavigatorWithWakeLock extends Navigator {
-  wakeLock?: {
-    request(type: "screen"): Promise<WakeLockSentinel>;
-  };
-}
-
 /**
  * Screen Wake Lock — keeps the screen on during a workout.
  * Automatically reacquires when the tab becomes visible again.
  */
 export function useWakeLock(active: boolean) {
   const [isLocked, setIsLocked] = useState(false);
-  const wakeLockRef = useRef<WakeLockSentinel | null>(null);
+  const wakeLockRef = useRef<{ release(): Promise<void>; released: boolean } | null>(null);
 
   const acquire = useCallback(async () => {
-    const nav = navigator as NavigatorWithWakeLock;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const nav = navigator as any;
     if (!nav.wakeLock) return false;
     try {
       const sentinel = await nav.wakeLock.request("screen");
