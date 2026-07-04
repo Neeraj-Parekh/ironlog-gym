@@ -713,7 +713,9 @@ export function ActiveSessionHUD() {
                     : "Station busy"}
                 </div>
                 <p className="text-muted-foreground mt-0.5">
-                  {fallbackPreview.message}
+                  {fallbackPreview.kind === "available"
+                    ? `Swapped to ${fallbackPreview.exerciseName}`
+                    : fallbackPreview.message}
                 </p>
               </div>
             )}
