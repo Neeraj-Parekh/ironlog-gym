@@ -6,7 +6,6 @@ import {
   useDayLabels,
 } from "@/hooks/use-routine";
 import { useWeeklyVolume, useStaleMuscles } from "@/hooks/use-weekly-volume";
-import { DayCell } from "./day-card";
 import { WeekCompletionGrid } from "@/components/analytics/visualizations";
 import type { DayOfWeek, RoutineNode } from "@/lib/types";
 import { CalendarDays, AlertCircle, Flame } from "lucide-react";
