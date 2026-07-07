@@ -64,7 +64,16 @@ import {
   Flame,
   Timer,
   Eye,
+  List,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
@@ -122,10 +131,11 @@ export function ActiveSessionHUD() {
   const [cardioMachine, setCardioMachine] = useState("");
   const [cardioDuration, setCardioDuration] = useState("");
   const [cardioDistance, setCardioDistance] = useState("");
-  // Next exercise preview + equipment picker + add exercise
+  // Next exercise preview + equipment picker + add exercise + exercise list
   const [showNextExercise, setShowNextExercise] = useState(false);
   const [showEquipmentPicker, setShowEquipmentPicker] = useState(false);
   const [showAddExercise, setShowAddExercise] = useState(false);
+  const [showExerciseList, setShowExerciseList] = useState(false);
 
   // Reset inputs when current node changes — use a keyed child component
   // to avoid setState-in-effect lint rule
@@ -266,13 +276,37 @@ export function ActiveSessionHUD() {
     }
   };
 
-  // ---- Skip / defer ----
-  const handleSkip = () => {
-    haptic("light");
+  // ---- Exercise completion options ----
+  const handleComplete = () => {
+    haptic("success");
+    toast.success(`${currentNode.name} marked complete`);
     skipCurrent();
-    toast("Exercise skipped", {
-      description: "Moved to next in queue",
+  };
+
+  const handleSkipPartial = () => {
+    haptic("light");
+    if (setsForCurrent.length > 0 && setsForCurrent.length < targetSetCount) {
+      toast(`Skipped ${currentNode.name}`, {
+        description: `Partial: ${setsForCurrent.length}/${targetSetCount} sets completed`,
+      });
+    } else if (setsForCurrent.length === 0) {
+      toast(`Skipped ${currentNode.name}`, {
+        description: "No sets completed",
+      });
+    } else {
+      toast(`Skipped ${currentNode.name}`, {
+        description: "All sets completed before skip",
+      });
+    }
+    skipCurrent();
+  };
+
+  const handleSkipCompletely = () => {
+    haptic("light");
+    toast(`Skipped ${currentNode.name} entirely`, {
+      description: "0 sets logged — will not count toward records",
     });
+    skipCurrent();
   };
 
   // ---- End session ----
@@ -763,16 +797,52 @@ export function ActiveSessionHUD() {
                 <span className="text-sm font-bold">STATION BUSY</span>
               </Button>
 
-              {/* SKIP / DEFER */}
-              <Button
-                size="lg"
-                variant="outline"
-                className="h-14 gap-2"
-                onClick={handleSkip}
-              >
-                <SkipForward className="h-5 w-5" />
-                <span className="text-sm font-bold">SKIP</span>
-              </Button>
+              {/* Exercise completion dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    className="h-14 gap-2"
+                  >
+                    <SkipForward className="h-5 w-5" />
+                    <span className="text-sm font-bold">NEXT ▾</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel>Exercise Options</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleComplete} className="gap-2">
+                    <Check className="h-4 w-4 text-emerald-500" />
+                    <div>
+                      <p className="text-sm font-medium">Mark Complete</p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {setsForCurrent.length}/{targetSetCount} sets logged
+                      </p>
+                    </div>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleSkipPartial} className="gap-2">
+                    <SkipForward className="h-4 w-4 text-amber-500" />
+                    <div>
+                      <p className="text-sm font-medium">Skip (Partial)</p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {setsForCurrent.length > 0
+                          ? `${setsForCurrent.length} sets saved`
+                          : "No sets logged yet"}
+                      </p>
+                    </div>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleSkipCompletely} className="gap-2">
+                    <X className="h-4 w-4 text-rose-500" />
+                    <div>
+                      <p className="text-sm font-medium">Skip Entirely</p>
+                      <p className="text-[10px] text-muted-foreground">
+                        No sets counted
+                      </p>
+                    </div>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
 
             {/* Tertiary actions: Add set, change equipment, add exercise */}
@@ -798,6 +868,22 @@ export function ActiveSessionHUD() {
                 variant="ghost"
                 size="sm"
                 className="h-7 text-xs gap-1"
+                onClick={() => {
+                  haptic("light");
+                  if (currentNode && (currentNode.sets_count ?? 3) > 1) {
+                    const newCount = (currentNode.sets_count ?? 3) - 1;
+                    useActiveSessionStore.getState().updateQueueItem(currentNode.id, { sets_count: newCount });
+                    toast.success(`Removed set — now ${newCount} sets`);
+                  }
+                }}
+              >
+                <Minus className="h-3.5 w-3.5" />
+                Remove Set
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 text-xs gap-1"
                 onClick={() => setShowEquipmentPicker(true)}
               >
                 <Dumbbell className="h-3.5 w-3.5" />
@@ -811,6 +897,18 @@ export function ActiveSessionHUD() {
               >
                 <Plus className="h-3.5 w-3.5" />
                 Add Exercise
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 text-xs gap-1"
+                onClick={() => {
+                  haptic("light");
+                  setShowExerciseList(true);
+                }}
+              >
+                <List className="h-3.5 w-3.5" />
+                Queue ({queue.length})
               </Button>
             </div>
 
@@ -936,6 +1034,81 @@ export function ActiveSessionHUD() {
           onClose={() => setShowAddExercise(false)}
         />
       )}
+
+      {/* Exercise queue list sheet */}
+      <Sheet open={showExerciseList} onOpenChange={setShowExerciseList}>
+        <SheetContent side="bottom" className="max-h-[80vh] overflow-y-auto px-4 pb-6" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              <List className="h-4 w-4" />
+              Workout Queue ({queue.length})
+            </SheetTitle>
+            <SheetDescription>
+              All exercises in this session. Current position highlighted.
+            </SheetDescription>
+          </SheetHeader>
+          <div className="space-y-1.5 mt-4">
+            {queue.map((node, i) => {
+              const isCurrent = i === currentIndex;
+              const isPast = i < currentIndex;
+              const loggedForThis = loggedSets.filter((s) => s.node_id === node.id);
+              const isCompleted = loggedForThis.length >= (node.sets_count ?? 3);
+              return (
+                <div
+                  key={node.id}
+                  className={cn(
+                    "flex items-center gap-2 rounded-lg border p-2.5",
+                    isCurrent && "border-foreground ring-1 ring-foreground/30 bg-accent",
+                    isPast && "opacity-50",
+                    !isCurrent && !isPast && "border-border"
+                  )}
+                >
+                  <div className={cn(
+                    "flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold shrink-0",
+                    isCompleted ? "bg-emerald-500 text-white" : isCurrent ? "bg-foreground text-background" : "bg-muted text-muted-foreground"
+                  )}>
+                    {isCompleted ? <Check className="h-3.5 w-3.5" /> : i + 1}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{node.name}</p>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <VisualTagBadge type={node.exercise_type} />
+                      <span className="text-[10px] text-muted-foreground">
+                        {loggedForThis.length}/{node.sets_count ?? 3} sets
+                      </span>
+                      {node.id.includes("_fb_") && (
+                        <span className="text-[9px] font-bold uppercase text-amber-600">Fallback</span>
+                      )}
+                    </div>
+                  </div>
+                  {isCurrent && (
+                    <span className="text-[10px] font-bold uppercase text-foreground shrink-0">Now</span>
+                  )}
+                  {!isCurrent && !isPast && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 text-xs shrink-0"
+                      onClick={() => {
+                        haptic("light");
+                        const diff = i - currentIndex;
+                        if (diff > 0) {
+                          for (let j = 0; j < diff; j++) useActiveSessionStore.getState().goToNext();
+                        } else {
+                          for (let j = 0; j < Math.abs(diff); j++) useActiveSessionStore.getState().goToPrev();
+                        }
+                        setShowExerciseList(false);
+                      }}
+                    >
+                      Go
+                    </Button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

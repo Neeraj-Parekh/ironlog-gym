@@ -19,6 +19,7 @@ import {
   TripleProgressRings,
   MuscleDayHeatmap,
 } from "./visualizations";
+import { WeightTrendGraph, MonthlyCalendar } from "./weight-bmi-calendar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CardSkeleton, EmptyState } from "@/components/shared/empty-state";
@@ -174,6 +175,10 @@ export function AnalyticsView() {
 
       {/* Triple progress rings */}
       <TripleProgressRings />
+
+      {/* Weight trend + BMI + Monthly calendar */}
+      <WeightTrendGraph />
+      <MonthlyCalendar />
 
       {/* Annual training heatmap */}
       <AnnualHeatmap year={new Date().getFullYear()} />
