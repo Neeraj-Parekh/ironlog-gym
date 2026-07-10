@@ -174,16 +174,35 @@ export const useActiveSessionStore = create<ActiveSessionState>((set, get) => ({
   swapToFallback: (fallbackNode) => {
     const { queue, currentIndex } = get();
     if (currentIndex >= queue.length) return;
-    // Replace current node with fallback at same position,
-    // AND push the original exercise to end of queue (so you come back to it)
     const original = queue[currentIndex];
+
+    // Replace current position with fallback
     const newQueue = [...queue];
     newQueue[currentIndex] = fallbackNode;
-    // Only add original to end if it's not already there
-    if (!newQueue.some((n) => n.id === original.id && n.id !== fallbackNode.id)) {
-      newQueue.push(original);
+
+    // Insert the original exercise IMMEDIATELY AFTER the current position
+    // (not at the end — so it comes up next after the fallback)
+    // But only if it's not already elsewhere in the queue (prevents duplicates)
+    const originalExistsElsewhere = newQueue.some(
+      (n, i) => i !== currentIndex && n.id === original.id
+    );
+    if (!originalExistsElsewhere) {
+      // Insert right after current position
+      newQueue.splice(currentIndex + 1, 0, original);
     }
-    set({ queue: newQueue });
+
+    // Prevent the fallback node itself from appearing multiple times
+    // (multi-click protection: if this fallback ID already exists elsewhere, remove the old one)
+    const fallbackCount = newQueue.filter((n) => n.id === fallbackNode.id).length;
+    if (fallbackCount > 1) {
+      // Keep only the one at currentIndex, remove others
+      const filtered = newQueue.filter((n, i) =>
+        i === currentIndex || n.id !== fallbackNode.id
+      );
+      set({ queue: filtered });
+    } else {
+      set({ queue: newQueue });
+    }
   },
 
   skipCurrent: () => {

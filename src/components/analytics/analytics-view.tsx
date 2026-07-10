@@ -12,6 +12,7 @@ import type { Session, SessionSet } from "@/lib/types";
 import { deleteSession } from "@/lib/session-helpers";
 import { useAppStore } from "@/lib/store/app-store";
 import { AchievementsPanel } from "./achievements-panel";
+import { SessionDetailDialog } from "./session-detail-dialog";
 import {
   AnnualHeatmap,
   HeroStats,
@@ -66,6 +67,7 @@ import {
   Zap,
   Activity,
   Trash2,
+  Pencil,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -75,6 +77,8 @@ export function AnalyticsView() {
   const loggedExercises = useLoggedExercises();
   const [selectedExerciseId, setSelectedExerciseId] = useState<string>("");
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [detailTarget, setDetailTarget] = useState<string | null>(null);
+  const [showDetail, setShowDetail] = useState(false);
   const [historyLimit, setHistoryLimit] = useState(10); // pagination
 
   const handleDeleteSession = async () => {
@@ -381,7 +385,7 @@ export function AnalyticsView() {
           {sessions.slice(0, historyLimit).map(({ session, sets }) => {
             const summary = summarizeSession(session, sets);
             return (
-              <Card key={session.id}>
+              <Card key={session.id} className="cursor-pointer hover:border-foreground/20 transition-colors" onClick={() => { setDetailTarget(session.id); setShowDetail(true); }}>
                 <CardContent className="pt-4 pb-4">
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <div>
@@ -408,8 +412,16 @@ export function AnalyticsView() {
                       <Button
                         variant="ghost"
                         size="sm"
+                        className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+                        onClick={(e) => { e.stopPropagation(); setDetailTarget(session.id); setShowDetail(true); }}
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
-                        onClick={() => setDeleteTarget(session.id)}
+                        onClick={(e) => { e.stopPropagation(); setDeleteTarget(session.id); }}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
@@ -454,6 +466,13 @@ export function AnalyticsView() {
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Session detail + edit dialog */}
+      <SessionDetailDialog
+        sessionId={detailTarget}
+        open={showDetail}
+        onOpenChange={(v) => { setShowDetail(v); if (!v) { reload(); } }}
+      />
 
       {/* Delete session confirmation */}
       <AlertDialog

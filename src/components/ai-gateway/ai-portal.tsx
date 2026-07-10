@@ -61,6 +61,8 @@ export function AIPortal() {
   const [importing, setImporting] = useState(false);
   const [copied, setCopied] = useState(false);
   const [mode, setMode] = useState<"ai" | "quick">("ai");
+  const [importScope, setImportScope] = useState<"exercises" | "full" | "multiweek">("exercises");
+  const [numWeeks, setNumWeeks] = useState("1");
 
   const { version } = useActiveVersion();
   const { exercises, reload: reloadExercises } = useExercises();
@@ -321,26 +323,69 @@ export function AIPortal() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
+          {/* Import scope dropdown */}
           <div>
             <Label className="text-xs text-muted-foreground">
-              Target day for import
+              What to import
             </Label>
-            <Select
-              value={String(targetDay)}
-              onValueChange={(v) => setTargetDay(Number(v) as DayOfWeek)}
-            >
+            <Select value={importScope} onValueChange={(v) => setImportScope(v as typeof importScope)}>
               <SelectTrigger className="mt-1">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {DAYS.map((d) => (
-                  <SelectItem key={d.value} value={String(d.value)}>
-                    {d.label}
-                  </SelectItem>
-                ))}
+                <SelectItem value="exercises">Exercises only (replace day)</SelectItem>
+                <SelectItem value="full">Full routine (exercises + cardio + stretch)</SelectItem>
+                <SelectItem value="multiweek">Multi-week plan (N weeks target)</SelectItem>
               </SelectContent>
             </Select>
           </div>
+
+          {/* Multi-week option */}
+          {importScope === "multiweek" && (
+            <div>
+              <Label className="text-xs text-muted-foreground">
+                Number of weeks to plan
+              </Label>
+              <Select value={numWeeks} onValueChange={setNumWeeks}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="2">2 weeks</SelectItem>
+                  <SelectItem value="4">4 weeks (1 month)</SelectItem>
+                  <SelectItem value="8">8 weeks (2 months)</SelectItem>
+                  <SelectItem value="12">12 weeks (3 months)</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-[10px] text-muted-foreground mt-1">
+                AI will generate a progressive overload plan across {numWeeks} weeks. Each week gets its own routine version.
+              </p>
+            </div>
+          )}
+
+          {/* Target day (hidden for multiweek) */}
+          {importScope !== "multiweek" && (
+            <div>
+              <Label className="text-xs text-muted-foreground">
+                Target day for import
+              </Label>
+              <Select
+                value={String(targetDay)}
+                onValueChange={(v) => setTargetDay(Number(v) as DayOfWeek)}
+              >
+                <SelectTrigger className="mt-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {DAYS.map((d) => (
+                    <SelectItem key={d.value} value={String(d.value)}>
+                      {d.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           <Textarea
             placeholder='Paste the AI-populated JSON here...'

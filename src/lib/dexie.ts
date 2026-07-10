@@ -20,6 +20,7 @@ import type {
   SessionSoreness,
   PreWorkoutContext,
   VitalityLog,
+  EditLog,
 } from "./types";
 
 export class GymDB extends Dexie {
@@ -39,6 +40,7 @@ export class GymDB extends Dexie {
   session_soreness!: Table<SessionSoreness, string>;
   pre_workout_context!: Table<PreWorkoutContext, string>;
   vitality_log!: Table<VitalityLog, string>;
+  edit_log!: Table<EditLog, string>;
 
   constructor() {
     super("gym_tracker_db");
@@ -89,6 +91,7 @@ export class GymDB extends Dexie {
       session_soreness: "&id, session_id, logged_at",
       pre_workout_context: "&id, session_id",
       vitality_log: "&id, date, logged_at",
+      edit_log: "&id, session_id, edited_at",
     });
   }
 }

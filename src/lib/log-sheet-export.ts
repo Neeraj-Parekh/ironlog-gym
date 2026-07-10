@@ -29,7 +29,8 @@ export interface LogSheetOptions {
  */
 export async function generateLogSheet(options: LogSheetOptions): Promise<string> {
   const db = getDB();
-  const start = new Date(options.startDate);
+  // Parse start date as local date components to avoid timezone issues
+  const [sy, sm, sd] = options.startDate.split("-").map(Number);
   const lines: string[] = [];
 
   // Get active version
@@ -62,9 +63,8 @@ export async function generateLogSheet(options: LogSheetOptions): Promise<string
     .toArray();
 
   for (let i = 0; i < options.numDays; i++) {
-    const date = new Date(start);
-    date.setDate(date.getDate() + i);
-    const dateStr = date.toISOString().slice(0, 10);
+    const date = new Date(sy, sm - 1, sd + i);
+    const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
     const dayOfWeek = date.getDay() as DayOfWeek;
     const dayName = DAY_NAMES[dayOfWeek];
     const dayLabel = labelMap.get(dayOfWeek) ?? dayName;

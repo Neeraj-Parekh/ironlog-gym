@@ -298,3 +298,14 @@ export interface VitalityLog {
   computed_score: number; // 0-100
   notes?: string;
 }
+
+// ---- Edit Log (audit trail for session edits) ----
+export interface EditLog {
+  id: string;
+  session_id: string;
+  edited_at: string; // ISO timestamp
+  edit_type: "set_weight" | "set_reps" | "set_delete" | "set_add" | "session_note" | "session_delete";
+  description: string; // human-readable: "Changed set 2 weight from 80 to 85kg"
+  old_value?: string;
+  new_value?: string;
+}

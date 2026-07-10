@@ -36,7 +36,9 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -65,6 +67,8 @@ import {
   Timer,
   Eye,
   List,
+  Sparkles,
+  Activity,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -136,11 +140,27 @@ export function ActiveSessionHUD() {
   const [showEquipmentPicker, setShowEquipmentPicker] = useState(false);
   const [showAddExercise, setShowAddExercise] = useState(false);
   const [showExerciseList, setShowExerciseList] = useState(false);
+  const [showQuickStretch, setShowQuickStretch] = useState(false);
+  // Edit logged set
+  const [editSetId, setEditSetId] = useState<string | null>(null);
+  const [editWeight, setEditWeight] = useState("");
+  const [editReps, setEditReps] = useState("");
+  // Station busy processing lock
+  const [busyProcessing, setBusyProcessing] = useState(false);
 
   // Reset inputs when current node changes — use a keyed child component
   // to avoid setState-in-effect lint rule
   const currentNode = queue[currentIndex];
   const isFinished = currentIndex >= queue.length;
+  // Track previous exercise ID to clear fallback preview on advance
+  const prevNodeIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    const currentId = currentNode?.id ?? null;
+    if (prevNodeIdRef.current !== null && prevNodeIdRef.current !== currentId) {
+      setFallbackPreview(null);
+    }
+    prevNodeIdRef.current = currentId;
+  }, [currentNode?.id]);
 
   // Keep screen on during active workout (releases on session end)
   const { isLocked: wakeLocked } = useWakeLock(!!session && !isFinished);
@@ -251,18 +271,28 @@ export function ActiveSessionHUD() {
 
   // ---- Station busy handler ----
   const handleStationBusy = async () => {
-    if (!currentNode) return;
+    if (!currentNode || busyProcessing) return;
+    setBusyProcessing(true);
     haptic("medium");
-    // Don't permanently mark busy — just resolve the fallback
+
+    // Track which fallbacks we've already tried this session for this exercise
+    // to prevent duplicates
+    const currentExerciseId = currentNode.exercise_id ?? currentNode.id;
+    const triedFallbacks = new Set<string>(
+      Array.from(busyNodeIds).filter(id => id.startsWith(currentExerciseId))
+    );
+
     const resolution = await resolveFallback(currentNode, busyNodeIds);
     if (resolution.kind === "available") {
+      // Mark this fallback as tried so multi-click doesn't duplicate
+      markStationBusy(resolution.node.id);
       setFallbackPreview({
         kind: "available",
         exerciseName: resolution.exercise.name,
       });
       swapToFallback(resolution.node);
       haptic("success");
-      toast.success(`Swapped to fallback: ${resolution.exercise.name}`);
+      toast.success(`Swapped to: ${resolution.exercise.name}`);
     } else if (resolution.kind === "all_busy") {
       setFallbackPreview({ kind: "all_busy", message: resolution.message });
       deferCurrentToEnd();
@@ -274,6 +304,7 @@ export function ActiveSessionHUD() {
       haptic("error");
       toast.error(resolution.message);
     }
+    setBusyProcessing(false);
   };
 
   // ---- Exercise completion options ----
@@ -401,7 +432,33 @@ export function ActiveSessionHUD() {
             </p>
           </div>
 
-          {/* Cardio details */}
+          {/* Post-workout cardio + stretch reminder */}
+          <div className="rounded-xl border border-sky-500/30 bg-sky-500/5 p-3">
+            <div className="flex items-center gap-2 mb-2">
+              <VisualTagBadge type="cardio" />
+              <span className="text-sm font-bold">Post-Workout Phase</span>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <p className="text-[10px] font-semibold uppercase text-muted-foreground mb-1">Cardio (20-25 min)</p>
+                <div className="space-y-0.5">
+                  {["Treadmill 5-6.5 km/h", "Exercise Bike 20 min", "Elliptical 20 min", "Stairmaster 15-20 min"].map((c, i) => (
+                    <p key={i} className="text-[11px] text-muted-foreground">{c}</p>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="text-[10px] font-semibold uppercase text-muted-foreground mb-1">Stretches (hold 20-30s)</p>
+                <div className="space-y-0.5">
+                  {["Chest, Shoulder, Triceps", "Lat, Hamstring, Quad", "Calf, Hip Flexor, Glute", "Butterfly, Child's pose, Cobra"].map((s, i) => (
+                    <p key={i} className="text-[11px] text-muted-foreground">{s}</p>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Cardio details — log what you did */}
           <div className="rounded-xl border p-3 space-y-2">
             <p className="text-xs font-semibold uppercase text-muted-foreground">Cardio</p>
             <div className="grid grid-cols-3 gap-2">
@@ -499,6 +556,50 @@ export function ActiveSessionHUD() {
         </div>
       ) : currentNode ? (
         <>
+          {/* ---- Phase indicator (Warm-up → Training → Cardio/Stretch) ---- */}
+          <div className="flex items-center gap-1 mb-3">
+            <div className={cn("flex-1 h-1.5 rounded-full transition-colors", currentIndex === 0 ? "bg-amber-500" : "bg-amber-500/30")} />
+            <div className={cn("flex-1 h-1.5 rounded-full transition-colors", currentIndex > 0 && currentIndex < totalExercises ? "bg-emerald-500" : "bg-emerald-500/30")} />
+            <div className={cn("flex-1 h-1.5 rounded-full transition-colors", currentIndex >= totalExercises ? "bg-sky-500" : "bg-sky-500/30")} />
+          </div>
+          <div className="flex items-center justify-between mb-3 text-[9px] text-muted-foreground">
+            <span className={cn(currentIndex === 0 && "text-amber-600 font-bold")}>Warm-up</span>
+            <span className={cn(currentIndex > 0 && currentIndex < totalExercises && "text-emerald-600 font-bold")}>Training ({currentIndex}/{totalExercises})</span>
+            <span className={cn(currentIndex >= totalExercises && "text-sky-600 font-bold")}>Cardio+Stretch</span>
+          </div>
+
+          {/* ---- Warm-up phase (shows before first set of first exercise) ---- */}
+          {currentIndex === 0 && setsForCurrent.length === 0 && (
+            <div className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/5 p-3">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <VisualTagBadge type="stretching" />
+                  <span className="text-sm font-bold">Warm-up Phase</span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs gap-1"
+                  onClick={() => setShowQuickStretch(true)}
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Full List
+                </Button>
+              </div>
+              <div className="space-y-1">
+                {["Neck mobility × 6 each direction", "Arm circles × 10 forward/back", "Shoulder rolls × 10", "Bodyweight squats × 15", "Walking lunges × 10 each leg", "High knees 20-30 sec", "Butt kicks 20-30 sec"].map((ex, i) => (
+                  <div key={i} className="flex items-center gap-2 rounded-lg bg-amber-500/5 px-2 py-1">
+                    <span className="text-[10px] font-bold text-amber-600 w-4 shrink-0">{i + 1}</span>
+                    <span className="text-xs">{ex}</span>
+                  </div>
+                ))}
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-2 text-center">
+                Complete warm-up, then start your first exercise below ↓
+              </p>
+            </div>
+          )}
+
           {/* ---- Current exercise card (THE BIG CARD) ---- */}
           <div className="flex-1 flex flex-col">
             {/* Exercise index badge + nav */}
@@ -621,13 +722,14 @@ export function ActiveSessionHUD() {
                 </p>
                 <div className="flex flex-wrap gap-1.5">
                   {setsForCurrent.map((s) => (
-                    <span
+                    <button
                       key={s.id}
-                      className="rounded bg-background px-2 py-1 text-xs font-mono"
+                      onClick={() => { setEditSetId(s.id); setEditWeight(String(s.weight_kg)); setEditReps(String(s.reps_completed)); }}
+                      className="rounded bg-background px-2 py-1 text-xs font-mono active:scale-95 hover:ring-1 hover:ring-foreground/30 transition-all"
                     >
                       {s.weight_kg}kg×{s.reps_completed}
                       {s.rpe && ` @${s.rpe}`}
-                    </span>
+                    </button>
                   ))}
                 </div>
               </div>
@@ -910,6 +1012,43 @@ export function ActiveSessionHUD() {
                 <List className="h-3.5 w-3.5" />
                 Queue ({queue.length})
               </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 text-xs gap-1 text-sky-600"
+                onClick={() => {
+                  haptic("light");
+                  // Log cardio as a special set with weight=0
+                  if (currentNode) {
+                    logSet(
+                      `cardio_${Date.now()}`,
+                      undefined,
+                      "Cardio",
+                      0,
+                      0,
+                      false,
+                      undefined,
+                      { notes: "Cardio logged mid-workout" }
+                    );
+                    toast.success("Cardio set logged");
+                  }
+                }}
+              >
+                <Activity className="h-3.5 w-3.5" />
+                Log Cardio
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 text-xs gap-1 text-amber-600"
+                onClick={() => {
+                  haptic("light");
+                  setShowQuickStretch(true);
+                }}
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                Quick Stretch
+              </Button>
             </div>
 
             {/* Manual rest timer controls */}
@@ -987,6 +1126,62 @@ export function ActiveSessionHUD() {
       {/* Rest timer pill (floating) */}
       <RestTimerPill />
 
+      {/* Edit logged set dialog */}
+      {editSetId && (
+        <Dialog open onOpenChange={() => setEditSetId(null)}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Edit Logged Set</DialogTitle>
+              <DialogDescription>
+                Correct a previously logged set. This will be noted in the edit log.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid grid-cols-2 gap-3 py-2">
+              <div>
+                <Label className="text-xs">Weight (kg)</Label>
+                <Input
+                  type="number"
+                  value={editWeight}
+                  onChange={(e) => setEditWeight(e.target.value)}
+                  className="mt-1 text-center font-bold"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Reps</Label>
+                <Input
+                  type="number"
+                  value={editReps}
+                  onChange={(e) => setEditReps(e.target.value)}
+                  className="mt-1 text-center font-bold"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditSetId(null)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  // Update the logged set in the store
+                  const { loggedSets } = useActiveSessionStore.getState();
+                  const updated = loggedSets.map((s) =>
+                    s.id === editSetId
+                      ? { ...s, weight_kg: Number(editWeight) || 0, reps_completed: Number(editReps) || 0 }
+                      : s
+                  );
+                  useActiveSessionStore.setState({ loggedSets: updated });
+                  haptic("success");
+                  toast.success("Set updated");
+                  setEditSetId(null);
+                }}
+              >
+                Save Correction
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
       {/* Equipment picker dialog */}
       {showEquipmentPicker && currentNode && (
         <EquipmentPicker
@@ -1034,6 +1229,48 @@ export function ActiveSessionHUD() {
           onClose={() => setShowAddExercise(false)}
         />
       )}
+
+      {/* Quick stretch sheet (mid-workout pain relief) */}
+      <Sheet open={showQuickStretch} onOpenChange={setShowQuickStretch}>
+        <SheetContent side="bottom" className="max-h-[80vh] overflow-y-auto px-4 pb-6" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-amber-500" />
+              Quick Stretch
+            </SheetTitle>
+            <SheetDescription>
+              Mid-workout stretches to ease pain. Hold each 15-20 seconds.
+            </SheetDescription>
+          </SheetHeader>
+          <div className="space-y-2 mt-4">
+            {[
+              { name: "Chest Stretch", how: "Hand on wall, rotate body away", target: "chest" },
+              { name: "Shoulder Stretch", how: "Cross-body, pull arm across", target: "shoulders" },
+              { name: "Triceps Stretch", how: "Hand behind head, push elbow", target: "triceps" },
+              { name: "Lat Stretch", how: "Hands overhead, lean sideways", target: "back" },
+              { name: "Forearm Stretch", how: "Pull fingers back, then down", target: "forearms" },
+              { name: "Hamstring Stretch", how: "Straight leg, reach for toes", target: "legs" },
+              { name: "Quadriceps Stretch", how: "Pull ankle to glute", target: "legs" },
+              { name: "Calf Stretch", how: "Push against wall, heel down", target: "legs" },
+              { name: "Hip Flexor Stretch", how: "Lunge position, push hips forward", target: "legs" },
+              { name: "Glute Stretch", how: "Figure-4, pull knee to chest", target: "legs" },
+              { name: "Neck Stretch", how: "Tilt head to side, hold 10s", target: "neck" },
+              { name: "Wrist Circle", how: "Rotate wrists 10 each direction", target: "forearms" },
+            ].map((stretch, i) => (
+              <div key={i} className="flex items-center gap-2 rounded-lg border p-2.5">
+                <span className="text-[10px] font-bold text-muted-foreground w-5 shrink-0">{i + 1}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium">{stretch.name}</p>
+                  <p className="text-[10px] text-muted-foreground">{stretch.how}</p>
+                </div>
+                <span className="text-[9px] capitalize rounded-full bg-amber-500/10 text-amber-600 px-2 py-0.5 shrink-0">
+                  {stretch.target}
+                </span>
+              </div>
+            ))}
+          </div>
+        </SheetContent>
+      </Sheet>
 
       {/* Exercise queue list sheet */}
       <Sheet open={showExerciseList} onOpenChange={setShowExerciseList}>
