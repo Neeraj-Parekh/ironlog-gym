@@ -36,6 +36,10 @@ export default function Home() {
     if (stored === "true") {
       setAuthed(true);
     }
+    // Request persistent storage to protect against cache clearing
+    import("@/lib/auto-backup").then(({ initStorageProtection }) => {
+      initStorageProtection();
+    });
   }, []);
 
   // Seed database only after authed

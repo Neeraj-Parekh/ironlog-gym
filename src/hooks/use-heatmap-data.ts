@@ -248,14 +248,18 @@ export function useWeeklyStackedVolume() {
     let cancelled = false;
     (async () => {
       const db = getDB();
-      const now = new Date();
-      const weekAgo = new Date(now);
-      weekAgo.setDate(weekAgo.getDate() - 7);
+      // Use calendar week (Mon-Sun) instead of rolling 7 days
+      const { getWeekStart, getWeekEnd } = await import("@/lib/calendar-weeks");
+      const weekStart = getWeekStart();
+      const weekEnd = getWeekEnd();
 
       const sessions = await db.sessions
         .where("status")
         .equals("completed" as never)
-        .filter((s) => new Date(s.started_at) >= weekAgo)
+        .filter((s) => {
+          const d = new Date(s.started_at);
+          return d >= weekStart && d <= weekEnd;
+        })
         .toArray();
 
       const allSets = await db.session_sets.toArray();
@@ -311,9 +315,6 @@ export function useRingStats() {
     (async () => {
       const db = getDB();
       const now = new Date();
-      const weekAgo = new Date(now);
-      weekAgo.setDate(weekAgo.getDate() - 7);
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
       const sessions = await db.sessions
         .where("status")
@@ -322,16 +323,21 @@ export function useRingStats() {
       const allSets = await db.session_sets.toArray();
       const streak = await db.streak.toArray();
 
-      // Weekly volume
-      const weeklySessions = sessions.filter(
-        (s) => new Date(s.started_at) >= weekAgo
-      );
+      // Weekly volume — calendar week (Mon-Sun)
+      const { getWeekStart, getWeekEnd } = await import("@/lib/calendar-weeks");
+      const weekStart = getWeekStart();
+      const weekEnd = getWeekEnd();
+      const weeklySessions = sessions.filter((s) => {
+        const d = new Date(s.started_at);
+        return d >= weekStart && d <= weekEnd;
+      });
       const weeklyVolume = weeklySessions.reduce((sum, s) => {
         const sets = allSets.filter((set) => set.session_id === s.id);
         return sum + sets.reduce((v, set) => v + set.weight_kg * set.reps_completed, 0);
       }, 0);
 
-      // Monthly sessions
+      // Monthly sessions — calendar month
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
       const monthlySessions = sessions.filter(
         (s) => new Date(s.started_at) >= monthStart
       ).length;

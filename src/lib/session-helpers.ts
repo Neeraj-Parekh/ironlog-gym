@@ -199,6 +199,12 @@ export async function endAndPersistSession(
   appStore.setActiveSessionId(null);
   appStore.setView("active_workout");
 
+  // Auto-download timestamped backup after session save
+  try {
+    const { autoDownloadBackup } = await import("./auto-backup");
+    await autoDownloadBackup();
+  } catch {}
+
   return {
     prs: newPRs.length,
     streak: streakResult.current,

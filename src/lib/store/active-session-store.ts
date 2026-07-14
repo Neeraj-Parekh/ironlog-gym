@@ -3,6 +3,7 @@
 // Holds a deep copy of the routine plan (data-isolation rule).
 // ============================================================
 import { create } from "zustand";
+import { persist, createJSONStorage } from "zustand/middleware";
 import type {
   RoutineNode,
   Session,
@@ -90,7 +91,9 @@ const initialRestTimer: RestTimerState = {
   completed_at: null,
 };
 
-export const useActiveSessionStore = create<ActiveSessionState>((set, get) => ({
+export const useActiveSessionStore = create<ActiveSessionState>()(
+  persist(
+    (set, get) => ({
   session: null,
   queue: [],
   currentIndex: 0,
@@ -122,6 +125,10 @@ export const useActiveSessionStore = create<ActiveSessionState>((set, get) => ({
       busyNodeIds: new Set(),
       restTimer: initialRestTimer,
     });
+    // Clear persisted state so it doesn't restore on next load
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("ironlog-active-session");
+    }
   },
 
   logSet: (nodeId, exerciseId, exerciseName, weight, reps, isFallback, restSeconds, options) => {
@@ -290,4 +297,30 @@ export const useActiveSessionStore = create<ActiveSessionState>((set, get) => ({
       restTimer: { ...restTimer, completed: false, completed_at: null },
     });
   },
-}));
+    }),
+    {
+      name: "ironlog-active-session",
+      storage: createJSONStorage(() => localStorage),
+      // Only persist the workout state (not rest timer which uses timestamps)
+      partialize: (state) => ({
+        session: state.session,
+        queue: state.queue,
+        currentIndex: state.currentIndex,
+        loggedSets: state.loggedSets,
+        // busyNodeIds is a Set — convert to array for JSON serialization
+        busyNodeIds: Array.from(state.busyNodeIds),
+      }),
+      // Restore: convert busyNodeIds array back to Set, reset rest timer
+      onRehydrateStorage: () => (state) => {
+        if (state) {
+          // Convert array back to Set
+          if (Array.isArray(state.busyNodeIds)) {
+            state.busyNodeIds = new Set(state.busyNodeIds);
+          }
+          // Reset rest timer on restore (don't resume old timer)
+          state.restTimer = initialRestTimer;
+        }
+      },
+    }
+  )
+);

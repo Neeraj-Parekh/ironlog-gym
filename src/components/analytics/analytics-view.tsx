@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useSessions, useLoggedExercises } from "@/hooks/use-analytics";
 import {
   buildExerciseTrend,
@@ -21,6 +21,10 @@ import {
   MuscleDayHeatmap,
 } from "./visualizations";
 import { WeightTrendGraph, MonthlyCalendar } from "./weight-bmi-calendar";
+import { ACWRGauge, MonotonyTrend, VolumeLandmine, DensityBadge, RIRBadge } from "./training-metrics-viz";
+import { PushPullRatio, StrengthStandards, DeloadAlert, RelativeVolumeBadge, TrainingStrainCard } from "./phase23-metrics-viz";
+import { computeACWR, computeMonotony } from "@/lib/training-metrics";
+import { getWeekStartNWeeksAgo, getWeekEndNWeeksAgo } from "@/lib/calendar-weeks";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CardSkeleton, EmptyState } from "@/components/shared/empty-state";
@@ -80,6 +84,28 @@ export function AnalyticsView() {
   const [detailTarget, setDetailTarget] = useState<string | null>(null);
   const [showDetail, setShowDetail] = useState(false);
   const [historyLimit, setHistoryLimit] = useState(10); // pagination
+  const [bodyweight, setBodyweight] = useState<number | null>(null);
+
+  // Fetch latest bodyweight for strength standards + relative volume
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    (async () => {
+      try {
+        const db = (await import("@/lib/dexie")).getDB();
+        const bw = await db.biometrics
+          .where("metric")
+          .equals("body_weight")
+          .reverse()
+          .sortBy("logged_at")
+          .then((arr) => arr[0]?.value ?? null);
+        setBodyweight(bw);
+      } catch {}
+    })();
+  }, [sessions.length]);
+
+  // Compute ACWR + Monotony for DeloadAlert and TrainingStrain
+  const acwrResult = useMemo(() => computeACWR(sessions), [sessions]);
+  const monotonyResult = useMemo(() => computeMonotony(sessions), [sessions]);
 
   const handleDeleteSession = async () => {
     if (!deleteTarget) return;
@@ -183,6 +209,23 @@ export function AnalyticsView() {
       {/* Weight trend + BMI + Monthly calendar */}
       <WeightTrendGraph />
       <MonthlyCalendar />
+
+      {/* Training science metrics — Phase 1 + 2 + 3 */}
+      <div className="grid grid-cols-1 gap-3">
+        {/* Phase 1 */}
+        <ACWRGauge sessions={sessions} />
+        <MonotonyTrend sessions={sessions} />
+        <VolumeLandmine sessions={sessions} exercises={loggedExercises} />
+
+        {/* Phase 2 — Coaching Insights */}
+        <PushPullRatio sessions={sessions} exercises={loggedExercises} />
+        <StrengthStandards sessions={sessions} bodyweight={bodyweight} />
+        <DeloadAlert sessions={sessions} acwr={acwrResult} monotony={monotonyResult} />
+        <RelativeVolumeBadge totalVolume={totalVolume} bodyweight={bodyweight} />
+
+        {/* Phase 3 — Advanced */}
+        <TrainingStrainCard monotony={monotonyResult} />
+      </div>
 
       {/* Annual training heatmap */}
       <AnnualHeatmap year={new Date().getFullYear()} />
@@ -451,6 +494,11 @@ export function AnalyticsView() {
                       </p>
                     </div>
                   </div>
+
+                  {/* Session density */}
+                  <div className="mt-2">
+                    <DensityBadge session={session} sets={sets} />
+                  </div>
                 </CardContent>
               </Card>
             );
@@ -590,14 +638,12 @@ function ProgressiveOverloadCard({
 function buildWeeklyAggregate(
   sessions: Array<{ session: Session; sets: SessionSet[] }>
 ): Array<{ week: string; volume: number; sessions: number }> {
-  const now = new Date();
   const weeks: Array<{ week: string; volume: number; sessions: number }> = [];
 
   for (let i = 7; i >= 0; i--) {
-    const weekEnd = new Date(now);
-    weekEnd.setDate(weekEnd.getDate() - i * 7);
-    const weekStart = new Date(weekEnd);
-    weekStart.setDate(weekStart.getDate() - 7);
+    // Use calendar weeks (Mon-Sun)
+    const weekStart = getWeekStartNWeeksAgo(i);
+    const weekEnd = getWeekEndNWeeksAgo(i);
 
     const weekLabel = `${weekStart.toLocaleDateString([], {
       month: "short",
@@ -608,7 +654,7 @@ function buildWeeklyAggregate(
     let sessionCount = 0;
     for (const { session, sets } of sessions) {
       const sessionDate = new Date(session.started_at);
-      if (sessionDate >= weekStart && sessionDate < weekEnd) {
+      if (sessionDate >= weekStart && sessionDate <= weekEnd) {
         volume += sets.reduce(
           (sum, s) => sum + s.weight_kg * s.reps_completed,
           0

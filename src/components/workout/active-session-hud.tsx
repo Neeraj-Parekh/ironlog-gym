@@ -729,6 +729,7 @@ export function ActiveSessionHUD() {
                     >
                       {s.weight_kg}kg×{s.reps_completed}
                       {s.rpe && ` @${s.rpe}`}
+                      {s.rpe && <span className="text-[8px] ml-0.5" style={{ color: s.rpe >= 9 ? "#ef4444" : s.rpe >= 7 ? "#f59e0b" : "#10b981" }}>({10 - s.rpe} RIR)</span>}
                     </button>
                   ))}
                 </div>
