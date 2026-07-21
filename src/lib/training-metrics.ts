@@ -3,6 +3,7 @@
 // ============================================================
 import type { SessionSet, Session, Biometric } from "./types";
 import { getWeekStart, getWeekStartNWeeksAgo, getWeekEndNWeeksAgo, isInCurrentWeek, isInWeek } from "./calendar-weeks";
+import { estimate1RM } from "./analytics";
 
 // ---- 1. Acute:Chronic Workload Ratio (ACWR) ----
 // Gabbett (2016) — injury risk indicator

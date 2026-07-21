@@ -58,9 +58,34 @@ export function generateSessionMarkdown(ctx: ExportContext): string {
       : `**Body Weight:** not recorded`,
     `**Weekly Volume (rolling):** ${weeklyVolume.toLocaleString()} kg`,
     "",
+  ];
+
+  // Post-workout ratings (if logged)
+  if (session.energy_rating || session.difficulty_rating) {
+    lines.push("**Post-Workout Ratings:**");
+    if (session.energy_rating) lines.push(`- Energy: ${session.energy_rating}/10`);
+    if (session.difficulty_rating) lines.push(`- Difficulty: ${session.difficulty_rating}/10`);
+    lines.push("");
+  }
+
+  // Cardio details (if logged)
+  if (session.cardio_machine || session.cardio_duration_min) {
+    lines.push("**Cardio Completed:**");
+    if (session.cardio_machine) lines.push(`- Machine: ${session.cardio_machine}`);
+    if (session.cardio_duration_min) lines.push(`- Duration: ${session.cardio_duration_min} min`);
+    if (session.cardio_distance) lines.push(`- Distance/Steps: ${session.cardio_distance}`);
+    lines.push("");
+  }
+
+  // Session notes (if any)
+  if (session.notes) {
+    lines.push(`**Notes:** ${session.notes}`, "");
+  }
+
+  lines.push(
     "| Exercise | Set | Weight (kg) | Reps | Type |",
     "| :--- | :---: | :---: | :---: | :--- |",
-  ];
+  );
 
   for (const [exerciseName, exSets] of byExercise) {
     exSets
